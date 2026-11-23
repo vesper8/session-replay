@@ -10,7 +10,7 @@
  */
 
 /** The marker for a finished request, or null when it is not one: { label, payload }. */
-export function requestMarker({ url, method = 'GET', status = 0, duration = 0, threshold = 500, page, skip = [], type = null }) {
+export function requestMarker({ url, method = 'GET', status = 0, duration = 0, threshold = 500, page, skip = [], origins = [], type = null }) {
     // A fetch with redirect: 'manual' or mode: 'no-cors' resolves with a status of 0 that is no failure.
     if (type === 'opaque' || type === 'opaqueredirect') return null;
 
@@ -24,7 +24,7 @@ export function requestMarker({ url, method = 'GET', status = 0, duration = 0, t
         return null;
     }
 
-    if (parsed.origin !== origin) return null;
+    if (parsed.origin !== origin && !origins.includes(parsed.origin)) return null;
     if (skip.some((prefix) => prefix && parsed.href.startsWith(prefix))) return null;
     if (status !== 0 && status < threshold) return null;
 

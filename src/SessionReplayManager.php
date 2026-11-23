@@ -299,12 +299,32 @@ class SessionReplayManager
      */
     public function recorder(array $options = []): HtmlString
     {
+        $config = $this->recorderConfiguration($options);
+
+        if ($config === null) {
+            return new HtmlString('');
+        }
+
+        $nonce = $options['nonce'] ?? Vite::cspNonce();
+        $nonceAttribute = $nonce ? ' nonce="'.e($nonce).'"' : '';
+
+        // The config runs again on every page Livewire's wire:navigate swaps in (the recorder reads it there); the
+        // bundle only once per document, Livewire would otherwise run it again on every page for nothing.
+        return new HtmlString(
+            '<script'.$nonceAttribute.'>window.__sessionReplay='.json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES).';</script>'
+            .'<script src="'.e($this->scriptUrl('recorder.js')).'" defer data-navigate-once'.$nonceAttribute.'></script>'
+        );
+    }
+
+    /** Signed configuration for an authenticated SPA endpoint; the application supplies its auth and tenancy middleware. */
+    public function recorderConfiguration(array $options = []): ?array
+    {
         $request = request();
         $user = array_key_exists('user', $options) ? $options['user'] : $this->user($request);
         $user = $user instanceof Model ? $user : null;
 
         if (! $this->shouldRecordFor($user, $request)) {
-            return new HtmlString('');
+            return null;
         }
 
         $tenant = array_key_exists('tenant', $options) ? $options['tenant'] : ($this->tenantUsing ? ($this->tenantUsing)($request) : null);
@@ -333,6 +353,7 @@ class SessionReplayManager
             'identity' => $token->isAnonymous() ? null : substr(hash('sha256', implode('|', [$token->userType, $token->userId, $token->tenantType, $token->tenantId, $token->impersonatorId, ...($token->impersonatorType === null ? [] : [$token->impersonatorType]), $token->pseudonym, config('app.key')])), 0, 16),
             'ingestUrl' => $this->route('ingest'),
             'assetUrl' => $this->route('ingest.asset'),
+            'scriptUrl' => $this->scriptUrl('recorder.js'),
             'sampleRate' => (float) config('session-replay.sample_rate', 1.0),
             'idleTimeout' => $this->idleMinutes() * 60 * 1000,
             'flushInterval' => max(1000, (int) round((float) config('session-replay.flush_seconds', 5) * 1000)),
@@ -353,6 +374,7 @@ class SessionReplayManager
                 'errors' => (bool) config('session-replay.capture.errors', true),
                 'livewire' => (bool) config('session-replay.capture.livewire', true),
                 'requests' => $this->requestThreshold(),
+                'requestOrigins' => array_values((array) config('session-replay.capture.request_origins', [])),
                 'vitals' => (bool) config('session-replay.capture.vitals', true),
                 'rageClicks' => (bool) config('session-replay.capture.rage_clicks', true),
             ],
@@ -376,15 +398,7 @@ class SessionReplayManager
             'assist' => $this->assistConfig(),
         ];
 
-        $nonce = $options['nonce'] ?? Vite::cspNonce();
-        $nonceAttribute = $nonce ? ' nonce="'.e($nonce).'"' : '';
-
-        // The config runs again on every page Livewire's wire:navigate swaps in (the recorder reads it there); the
-        // bundle only once per document, Livewire would otherwise run it again on every page for nothing.
-        return new HtmlString(
-            '<script'.$nonceAttribute.'>window.__sessionReplay='.json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES).';</script>'
-            .'<script src="'.e($this->scriptUrl('recorder.js')).'" defer data-navigate-once'.$nonceAttribute.'></script>'
-        );
+        return $config;
     }
 
     /**

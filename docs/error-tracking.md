@@ -106,3 +106,11 @@ For the context the closure receives an unsaved model that carries only the id, 
 ```
 
 No cookie is written and the middleware is not registered. Rename the cookie with `context.cookie`. If your app lists cookies for a consent banner, this one is functional: it identifies a recording, not a person, and is only set while recording runs.
+
+## Standalone frontend context (Spicy fork)
+
+A standalone frontend sends `X-Session-Replay: <recording UUID>.<write key>` on its own
+trusted API requests instead of relying on a shared origin cookie. The header takes
+precedence over the cookie. Obtain it from `SessionReplay.contextHeader()` and clear it on
+logout or tenant changes. The write key is a credential: never put it in URLs or report
+text. See [Standalone frontends](standalone.md).

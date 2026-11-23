@@ -2,6 +2,15 @@
 
 All notable changes to `packstub/session-replay` are documented here.
 
+## Spicy fork — 2026-11-23
+
+- Authenticated SPA endpoints can obtain signed recorder configuration without rendering Blade.
+- A recorder can discard its current context and start under a new signed identity without reloading Vue.
+- Cross-origin ingest uses an explicit frontend allowlist; failed requests can include selected API origins.
+- API requests can carry replay context in `X-Session-Replay`, including the recording's write key.
+
+See [the standalone integration](docs/standalone.md). This is an initial fork implementation; runtime verification is pending.
+
 ## 1.2.0 — 2026-11-20
 
 **Introducing Assist: live help, right on the page.** Session Replay no longer only shows what happened: support can now join a visitor while they are still there. The agent sees the page live, points, draws over it and, when the visitor allows it, takes control, talks or shares a screen, all from your own Laravel app. The live part runs on [Holler for Laravel](https://github.com/packstub/holler) 1.0: a WebRTC call straight between the two browsers, with signaling over plain HTTP, so there is no websocket server to run.

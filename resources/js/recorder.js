@@ -105,16 +105,50 @@ const skipped = new Set();
 // SessionReplay.assist); the rest is assist.js, loaded with import() the first time it is needed.
 let assist = null;
 
-const onError = config?.mode === 'on_error';
-const windowMs = onError ? config.onError.bufferMs : 0;
-const checkoutMs = onError ? checkoutInterval(windowMs) : 0;
-const keepPending = onError && !!config.onError.keepPending;
+let onError = config?.mode === 'on_error';
+let windowMs = onError ? config.onError.bufferMs : 0;
+let checkoutMs = onError ? checkoutInterval(windowMs) : 0;
+let keepPending = onError && !!config.onError.keepPending;
 // What the rolling window may hold (on_error.max_buffer_mb), by the same estimate as the batches above; past it the
 // window shrinks to its newest snapshot.
-const maxWindowChars = onError ? config.onError.maxWindowChars || 5_000_000 : 0;
+let maxWindowChars = onError ? config.onError.maxWindowChars || 5_000_000 : 0;
 
-const matches = config ? attributeMatcher(config.size.stripAttributes, config.size.keepAttributes) : null;
+let matches = config ? attributeMatcher(config.size.stripAttributes, config.size.keepAttributes) : null;
 const canHash = !!(window.crypto && window.crypto.subtle && window.TextEncoder);
+
+function configure(fresh) {
+    if (!fresh || !fresh.token || !fresh.identity) throw new Error('Signed recorder configuration is required.');
+
+    reset();
+    config = fresh;
+    window.__sessionReplay = fresh;
+    flushInterval = fresh.flushInterval;
+    onError = fresh.mode === 'on_error';
+    windowMs = onError ? fresh.onError.bufferMs : 0;
+    checkoutMs = onError ? checkoutInterval(windowMs) : 0;
+    keepPending = onError && !!fresh.onError.keepPending;
+    maxWindowChars = onError ? fresh.onError.maxWindowChars || 5_000_000 : 0;
+    matches = attributeMatcher(fresh.size.stripAttributes, fresh.size.keepAttributes);
+
+    return start();
+}
+
+function reset() {
+    stop();
+    generation++;
+    session = null;
+    lastPage = null;
+    activeMs = 0;
+    lastActiveAt = 0;
+    sinceSnapshotChars = 0;
+    overWindow = false;
+    checkoutPending = false;
+    queued = 0;
+    sending = Promise.resolve(false);
+    cutSpread?.();
+    cutSpread = null;
+    write('sessionStorage', STORAGE_KEY, 'null');
+}
 
 function storage(kind) {
     try {
@@ -296,9 +330,10 @@ async function sha256(text) {
 }
 
 /** Swap stylesheet text for its hash; the text is uploaded once, only if the server does not have it. */
-async function dedupeStyles(event, slots) {
+async function dedupeStyles(event, slots, current) {
     for (const slot of slots) {
         const hash = await sha256(slot.text);
+        if (current !== generation) return event;
 
         slot.holder[slot.key] = assetPlaceholder(hash);
         assets.add(hash);
@@ -577,7 +612,7 @@ function emit(event) {
     const current = generation;
 
     pendingAsync++;
-    dedupeStyles(event, slots)
+    dedupeStyles(event, slots, current)
         .catch(() => event)
         .then((processed) => {
             pendingAsync--;
@@ -652,10 +687,11 @@ function form(batch, blob) {
  * Uploads the stylesheets the server asked for, named for the recording (it points at a stylesheet only once its
  * own upload went through); returns the hashes whose upload failed and is worth trying again.
  */
-async function uploadAssets(hashes, token, recording) {
+async function uploadAssets(hashes, token, recording, currentEra = era) {
     const failed = [];
 
     for (const hash of hashes) {
+        if (stopped || currentEra !== era) return failed;
         const text = pendingAssetText.get(hash);
 
         if (text === undefined) continue;
@@ -673,11 +709,14 @@ async function uploadAssets(hashes, token, recording) {
         data.append('session', recording.id);
         if (recording.key) data.append('key', recording.key);
         data.append('content', await gzip(text), 'content');
+        if (stopped || currentEra !== era) return failed;
 
         try {
             const response = await fetch(config.assetUrl, { method: 'POST', body: data });
+            if (stopped || currentEra !== era) return failed;
 
             if (response.status === 429 && (await answer(response)).stop) {
+                if (stopped || currentEra !== era) return failed;
                 stop(true);
 
                 return failed;
@@ -791,6 +830,7 @@ async function send(batch) {
     if (stopped || batch.era !== era) return false;
 
     await prepare(batch);
+    if (stopped || batch.era !== era) return false;
 
     const blob = batch.blob;
 
@@ -840,6 +880,7 @@ async function send(batch) {
     }
 
     const body = await answer(response);
+    if (stopped || batch.era !== era) return false;
 
     // "Stop" comes with a 429 too (the daily limit): read before the retry decision, or the tab would retry all day.
     if (body.stop) {
@@ -874,7 +915,9 @@ async function send(batch) {
         if (assist && body.assist) assist.knock(body.assist);
 
         // A stylesheet whose upload failed earlier goes again with the next batch; its text is kept until then.
-        assetRetry = new Set(await uploadAssets([...new Set([...(body.missing_assets || []), ...assetRetry])], batch.token, batch.session));
+        const failedAssets = await uploadAssets([...new Set([...(body.missing_assets || []), ...assetRetry])], batch.token, batch.session, batch.era);
+        if (stopped || batch.era !== era) return false;
+        assetRetry = new Set(failedAssets);
 
         for (const hash of batch.meta.assets) if (!assetRetry.has(hash)) pendingAssetText.delete(hash);
     }
@@ -898,6 +941,8 @@ async function answer(response) {
  * when the server said when (send() waits for the pause, the try is not counted).
  */
 async function failed(batch, paused = false) {
+    if (stopped || batch.era !== era) return false;
+
     if (batch.window && !batch.kept && !stopped) await keep(batch);
 
     if (paused) return stopped ? false : send(batch);
@@ -1009,7 +1054,7 @@ function queue(batch) {
         .then(() => ready)
         .then(() => send(batch))
         .catch(() => false)
-        .finally(() => queued--);
+        .finally(() => { if (batch.era === era) queued--; });
 
     return sending;
 }
@@ -1235,9 +1280,6 @@ function watchLivewire() {
  * off by closing or navigating away is no failure of the app.
  */
 function watchRequests() {
-    const threshold = config.capture.requests;
-    // ingest, ingest/asset and ingest/snapshot share the prefix.
-    const skip = [config.ingestUrl];
     let leaving = false;
     let leavingTimer = null;
 
@@ -1251,10 +1293,10 @@ function watchRequests() {
     window.addEventListener('beforeunload', leave);
     window.addEventListener('pagehide', leave);
 
-    const report = (details) => {
-        if (leaving) return;
+    const report = (details, requestEra) => {
+        if (leaving || requestEra !== era || !stopRecording || !config.capture.requests) return;
 
-        const marker = requestMarker({ ...details, threshold, page: location.href, skip });
+        const marker = requestMarker({ ...details, threshold: config.capture.requests, page: location.href, skip: [config.ingestUrl], origins: config.capture.requestOrigins || [] });
 
         if (marker) mark('request', marker.label, { ...marker.payload, url: redacted(marker.payload.url) });
     };
@@ -1264,6 +1306,7 @@ function watchRequests() {
     if (typeof nativeFetch === 'function') {
         window.fetch = function (input, init) {
             const started = performance.now();
+            const requestEra = era;
             const promise = nativeFetch.apply(this, arguments);
 
             try {
@@ -1275,8 +1318,8 @@ function watchRequests() {
                     // unhandledrejection (the error marker, the app's error tracker).
                     return observe(
                         promise,
-                        (response) => report({ url: response.url || url, method, status: response.status, type: response.type, duration: performance.now() - started }),
-                        (error) => error?.name !== 'AbortError' && report({ url, method, status: 0, duration: performance.now() - started }),
+                        (response) => report({ url: response.url || url, method, status: response.status, type: response.type, duration: performance.now() - started }, requestEra),
+                        (error) => error?.name !== 'AbortError' && report({ url, method, status: 0, duration: performance.now() - started }, requestEra),
                     );
                 }
             } catch {
@@ -1297,7 +1340,7 @@ function watchRequests() {
     const send = proto.send;
 
     proto.open = function (method, url) {
-        requests.set(this, { method, url: String(url), livewire: false, aborted: false, started: 0 });
+        requests.set(this, { method, url: String(url), livewire: false, aborted: false, started: 0, era });
 
         return open.apply(this, arguments);
     };
@@ -1327,7 +1370,7 @@ function watchRequests() {
 
                 if (!current || current.livewire || current.aborted) return;
 
-                report({ url: this.responseURL || current.url, method: current.method, status: this.status, duration: performance.now() - current.started });
+                report({ url: this.responseURL || current.url, method: current.method, status: this.status, duration: performance.now() - current.started }, current.era);
             });
         }
 
@@ -1725,6 +1768,9 @@ if (config && !window.SessionReplay) {
 
     window.SessionReplay = {
         start,
+        configure,
+        reset,
+        contextHeader: () => (stopRecording && !stopped && session?.key ? `${session.id}.${session.key}` : null),
         stop: () => stop(),
         flush,
         /** Record a moment of your own: SessionReplay.mark('Checkout started', { cart: 3 }). */
@@ -1799,5 +1845,5 @@ if (config && !window.SessionReplay) {
         }
     }
 
-    start();
+    if (!config.deferStart) start();
 }

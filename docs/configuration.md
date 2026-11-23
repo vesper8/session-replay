@@ -198,3 +198,15 @@ They land in `lang/vendor/session-replay/{locale}/viewer.php`, `player.php` and 
 | --- | --- |
 | `session-replay:install` | Publish the config, offer to migrate, publish the provider with the gate. |
 | `session-replay:prune {--days=}` | Delete old recordings, unreferenced stylesheets and old assist requests without a recording. |
+
+## Spicy fork additions
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `ingest.origins` | `[]` | Exact frontend origins allowed to POST replay uploads across origins; no wildcard or credentialed CORS. |
+| `capture.request_origins` | `[]` | Additional exact API origins whose failed fetch/XHR requests become markers. |
+
+An application endpoint can return `SessionReplay::recorderConfiguration()` after its own
+identity and tenancy checks. See [Standalone frontends](standalone.md) for deferred bundle
+startup, the context-reset API and `X-Session-Replay` attribution. Capture watcher policy
+changes require a document reload.

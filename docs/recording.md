@@ -205,3 +205,10 @@ Watching is the other side: the player rebuilds the recorded page from the `<sty
 - **Canvas and cross-origin iframes are not recorded.** A same-size placeholder appears in the replay.
 - **Images and fonts are referenced by URL.** The replay loads them from where the page did; one that was removed since shows as missing. Stylesheets are stored with the recording.
 - **The last moments before a tab closes** upload in one request without compression; a very large final batch may not make it.
+
+## Standalone frontends (Spicy fork)
+
+An authenticated application endpoint can return the same signed configuration through
+`SessionReplay::recorderConfiguration()`. The SPA loads the served bundle with startup
+deferred, then starts the currently authenticated context explicitly. See
+[Standalone frontends](standalone.md) for setup, reset behavior and its current limitations.

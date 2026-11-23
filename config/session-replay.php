@@ -168,6 +168,8 @@ return [
         // Other requests (fetch, XMLHttpRequest: Inertia, axios) as "request" markers: same-origin ones answered
         // with this status or higher, or not at all. Never headers or bodies. false turns it off.
         'requests' => 500,
+        // Extra API origins whose failed requests belong to this application.
+        'request_origins' => [],
         // Exceptions Laravel reports during a recorded request as "error" markers (source "server"): the class, status,
         // method and path. 'message' adds the exception's message (it may carry personal data); false turns it off.
         'server_errors' => 'class',
@@ -244,6 +246,8 @@ return [
     'domain' => null,
 
     'ingest' => [
+        // Exact frontend origins allowed to upload to another origin; no wildcard or credentials.
+        'origins' => [],
         // Extra middleware for the upload routes. None is needed, and "web" would ask for a CSRF token
         // the recorder does not send: identity comes from the token the page was rendered with.
         'middleware' => [],

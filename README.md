@@ -1,5 +1,8 @@
 # Session Replay for Laravel
 
+Spicy fork: [standalone Vue integration](docs/standalone.md), based on upstream 1.2.0.
+
+
 <div class="filament-hidden">
 
 ![Session Replay for Laravel — watch what happened, inside your own Laravel app](https://raw.githubusercontent.com/packstub/art/main/session-replay/banner.jpg)

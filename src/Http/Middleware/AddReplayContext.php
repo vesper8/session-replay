@@ -24,11 +24,13 @@ class AddReplayContext
     {
         // Nothing of an earlier request carries over (a long-running server keeps the instance).
         app(ServerErrors::class)->forRecording(null);
+        Context::forget(['session_replay', 'session_replay_url', 'session_replay_moment']);
 
         if (config('session-replay.enabled', true) && config('session-replay.context.enabled', true)) {
             // Read before cookie decryption runs: the recorder writes it in the clear, as "<id>.<write key>" (the id
             // alone from a recorder from before write keys).
-            $cookie = $request->cookies->get((string) config('session-replay.context.cookie', 'session_replay_id'));
+            $cookie = $request->header('X-Session-Replay')
+                ?? $request->cookies->get((string) config('session-replay.context.cookie', 'session_replay_id'));
             [$id, $key] = is_string($cookie) ? array_pad(explode('.', $cookie, 2), 2, null) : [null, null];
 
             if (is_string($id) && Str::isUuid($id)) {

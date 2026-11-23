@@ -26,6 +26,7 @@ use Packstub\SessionReplay\Http\Controllers\ViewerController;
 use Packstub\SessionReplay\Http\Middleware\AddReplayContext;
 use Packstub\SessionReplay\Http\Middleware\AuthorizeViewer;
 use Packstub\SessionReplay\Http\Middleware\CapIngest;
+use Packstub\SessionReplay\Http\Middleware\RecorderCors;
 use Packstub\SessionReplay\Http\Middleware\ThrottleIngest;
 use Packstub\SessionReplay\Support\Assist;
 use Packstub\SessionReplay\Support\ContextToken;
@@ -225,8 +226,11 @@ class SessionReplayServiceProvider extends PackageServiceProvider
         ]), function () use ($uuid): void {
             Route::get('scripts/{file}', ScriptController::class)->where('file', '[a-z.]+')->name('script');
 
+            Route::options('ingest/{any?}', fn () => response()->noContent())
+                ->where('any', '.*')->middleware(RecorderCors::class);
+
             // The per-person limit first, then the cap for the whole app (ingest.global_requests_per_minute).
-            Route::middleware([...(array) config('session-replay.ingest.middleware', []), ThrottleIngest::class.':session-replay', CapIngest::class])->group(function (): void {
+            Route::middleware([RecorderCors::class, ...(array) config('session-replay.ingest.middleware', []), ThrottleIngest::class.':session-replay', CapIngest::class])->group(function (): void {
                 Route::post('ingest', [IngestController::class, 'store'])->name('ingest');
                 Route::post('ingest/asset', [IngestController::class, 'asset'])->name('ingest.asset');
                 Route::post('ingest/snapshot', [IngestController::class, 'snapshot'])->name('ingest.snapshot');
