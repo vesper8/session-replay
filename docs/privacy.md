@@ -153,3 +153,23 @@ Adapt this to your product:
 > To help us find and fix problems, we record how signed-in users interact with the application: the pages shown, clicks, scrolling and technical errors. What you type into form fields is masked before it leaves your browser, and passwords are never recorded. Recordings are stored on our own infrastructure, are accessible only to authorized support and engineering staff, and are deleted after 30 days. We do not share them with third parties.
 
 This page describes what the software does; it is not legal advice.
+
+## Reduced layout capture (Spicy fork)
+
+`privacy.layout_only=true` adds a restrictive browser-side content filter before buffering,
+stylesheet deduplication, Assist tapping and upload. It forces input/text masking, maps
+class/id/CSS variable identifiers to opaque names, removes resource addresses and all
+non-allowlisted attributes, restricts CSS to presentation values, replaces page addresses
+with a fixed placeholder and drops custom/plugin events and unsupported incremental events.
+Navigation metadata becomes a fixed label and placeholder URL. CSS attribute selectors,
+fonts, animation, media queries and dynamic style rules lose fidelity under this profile.
+Unsupported stylesheet parsing yields an empty stylesheet.
+
+Pair this with `privacy.anonymous=true`, `privacy.store_user_agent=false`, media blocking,
+no custom properties and disabled console/error/request/vital/server-error capture.
+Person removal still keeps workspace scope; signed tokens use an unstored keyed pseudonym
+for per-person limits. Timing, dimensions, text lengths, interaction patterns and any
+support-ticket association remain observable. This is pseudonymous diagnostic data rather
+than a promise of irreversible anonymity. Review representative product recordings before
+enabling it. See [standalone integration](standalone.md) and the enclosing application's
+[policy](../../../../docs-spicy/session-replay.md).

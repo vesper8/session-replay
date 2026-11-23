@@ -42,6 +42,13 @@ if the user and tenant that requested it are still current.
 - `contextHeader()` returns this active recording's UUID and write key, or null.
 - `send()` uploads the rolling buffer and continues recording, as upstream documents.
 
+Staff-operated installations can use `mode=session` and `consent=always` without rendering
+customer replay controls. The application's authenticated configuration endpoint remains
+authoritative; poll it and call `reset()` when capture is disabled or its policy cannot be
+retrieved. Ingest also rejects uploads when the server flag is off. Spicy uses the stricter
+[`privacy.layout_only` profile](privacy.md#reduced-layout-capture-spicy-fork), removes stored
+person identity and raw user agents, and disables free-form capture channels.
+
 Initialize the bundle once per document. Capture watcher settings are installed with the
 first configuration; reload the document after changing those settings. Context switches
 change identity and token while retaining the same installation's capture policy.

@@ -210,3 +210,10 @@ An application endpoint can return `SessionReplay::recorderConfiguration()` afte
 identity and tenancy checks. See [Standalone frontends](standalone.md) for deferred bundle
 startup, the context-reset API and `X-Session-Replay` attribution. Capture watcher policy
 changes require a document reload.
+
+### Spicy fork layout profile
+
+`privacy.layout_only` defaults to false in the reusable package. Spicy enables it alongside
+anonymous storage, full text/input masking, media blocking and disabled diagnostic content
+channels. It removes content and resource URLs at the cost of replay fidelity. See the
+[privacy profile](privacy.md#reduced-layout-capture-spicy-fork).

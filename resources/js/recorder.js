@@ -1,3 +1,4 @@
+import { layoutPrivacy } from './lib/layout-privacy.js';
 import { record } from '@rrweb/record';
 import { getRecordConsolePlugin } from '@rrweb/rrweb-plugin-console-record';
 import { onCLS, onINP, onLCP } from 'web-vitals';
@@ -36,6 +37,7 @@ import { createAssistHook } from './lib/assist-hook.js';
  */
 
 let config = window.__sessionReplay;
+let scrubLayout = layoutPrivacy();
 const EVENT_META = 4;
 const EVENT_INCREMENTAL = 3;
 const EVENT_CUSTOM = 5;
@@ -121,6 +123,7 @@ function configure(fresh) {
 
     reset();
     config = fresh;
+    scrubLayout = layoutPrivacy();
     window.__sessionReplay = fresh;
     flushInterval = fresh.flushInterval;
     onError = fresh.mode === 'on_error';
@@ -275,6 +278,11 @@ function mark(type, label, payload = {}, heldAt = null) {
 
 /** The marker itself, at `at`; `live` while rrweb records (a held marker keeps its own time). */
 function note(type, label, payload, at, live) {
+    if (config.privacy.layoutOnly) {
+        if (type !== 'navigation') return;
+        label = 'Page';
+        payload = { url: 'https://replay.invalid/page' };
+    }
     const text = String(label ?? '').slice(0, 480) || type;
 
     markers.push({ type, label: text, payload, at });
@@ -590,6 +598,7 @@ function emit(event) {
     if (textMaskingOn()) maskTextAttributes(event, isTextMasked, elementOf);
 
     if (event.type === EVENT_META && event.data && event.data.href) event.data.href = redacted(event.data.href);
+    if (config.privacy.layoutOnly && !scrubLayout(event)) return;
     // Once the tab used wire:navigate its snapshots are numbered after the first page's, so they never match a shared
     // one, and the page is not the one the server rendered for share_routes.
     if (event.type === EVENT_FULL_SNAPSHOT && navigation.swapped()) unshared.add(event);
@@ -1140,7 +1149,7 @@ function schedule() {
 
 /** The URL without the values of the query parameters privacy.redact_query lists. */
 function redacted(url) {
-    return redactUrl(url, config.privacy.redactQuery, location.href);
+    return config.privacy.layoutOnly ? 'https://replay.invalid/page' : redactUrl(url, config.privacy.redactQuery, location.href);
 }
 
 /** Whether anything inside the element matches one of the selectors; a selector the browser rejects counts as a match. */
@@ -1444,10 +1453,10 @@ function recordOptions() {
         plugins: consoleCapture ? [consoleCapture.plugin] : [],
         // By tag, not rrweb's list of input types (see inputMaskOptions).
         maskAllInputs: false,
-        maskInputOptions: inputMaskOptions(config.privacy.maskAllInputs),
-        maskTextSelector: config.privacy.maskAllText ? '*' : simplifyMaskSelector(config.privacy.maskTextSelector) || undefined,
+        maskInputOptions: inputMaskOptions(config.privacy.layoutOnly || config.privacy.maskAllInputs),
+        maskTextSelector: config.privacy.layoutOnly || config.privacy.maskAllText ? '*' : simplifyMaskSelector(config.privacy.maskTextSelector) || undefined,
         // mask_all_text with an unmask selector: rrweb hands every text it masks to this, with its element.
-        maskTextFn: config.privacy.maskAllText && config.privacy.unmaskTextSelector ? textMasker(config.privacy.unmaskTextSelector, config.privacy.maskTextSelector) : undefined,
+        maskTextFn: !config.privacy.layoutOnly && config.privacy.maskAllText && config.privacy.unmaskTextSelector ? textMasker(config.privacy.unmaskTextSelector, config.privacy.maskTextSelector) : undefined,
         blockSelector: config.privacy.blockSelector || undefined,
         ignoreSelector: config.privacy.ignoreSelector || undefined,
         slimDOMOptions: 'all',
@@ -1490,6 +1499,7 @@ const navigation = navigationPause({
         }
 
         config = fresh;
+    scrubLayout = layoutPrivacy();
 
         if (startOnNextPage && !stopRecording) {
             start();
@@ -1690,6 +1700,7 @@ function restart(fresh) {
     overWindow = false;
     session = null;
     config = fresh;
+    scrubLayout = layoutPrivacy();
 
     start();
 }

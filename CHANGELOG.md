@@ -4,6 +4,7 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-23
 
+- An optional reduced layout profile removes content, resource URLs and DOM identifiers before upload.
 - Authenticated SPA endpoints can obtain signed recorder configuration without rendering Blade.
 - A recorder can discard its current context and start under a new signed identity without reloading Vue.
 - Cross-origin ingest uses an explicit frontend allowlist; failed requests can include selected API origins.

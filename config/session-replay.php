@@ -134,6 +134,8 @@ return [
     */
 
     'privacy' => [
+        // A reduced layout stream: opaque DOM selectors, no resource URLs, content or custom events.
+        'layout_only' => false,
         'mask_all_inputs' => true,
         'mask_all_text' => false,
         'mask_text_selector' => '[data-replay-mask], [contenteditable]',
