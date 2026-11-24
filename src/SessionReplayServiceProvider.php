@@ -58,6 +58,7 @@ class SessionReplayServiceProvider extends PackageServiceProvider
             // Auto-run by default; database-per-tenant apps set run_migrations=false, publish and run them centrally.
             ->runsMigrations((bool) config('session-replay.run_migrations', true))
             ->hasCommand(PruneCommand::class)
+            ->hasCommand(\Packstub\SessionReplay\Commands\PrepareStorageCommand::class)
             ->hasInstallCommand(function (InstallCommand $command): void {
                 $command
                     ->startWith(fn (InstallCommand $command) => $command->info('Installing Session Replay…'))
@@ -224,7 +225,7 @@ class SessionReplayServiceProvider extends PackageServiceProvider
             'domain' => config('session-replay.domain'),
             'as' => 'session-replay.',
         ]), function () use ($uuid): void {
-            Route::get('scripts/{file}', ScriptController::class)->where('file', '[a-z.]+')->name('script');
+            Route::get('scripts/{file}', ScriptController::class)->where('file', '[a-z.]+')->middleware(RecorderCors::class)->name('script');
 
             Route::options('ingest/{any?}', fn () => response()->noContent())
                 ->where('any', '.*')->middleware(RecorderCors::class);

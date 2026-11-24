@@ -19,6 +19,7 @@ const shared = {
 };
 
 const targets = [
+    { ...shared, format: 'esm', entryPoints: { client: 'resources/js/client.js' }, outdir: 'resources/dist' },
     { ...shared, entryPoints: { recorder: 'resources/js/recorder.js' }, outdir: 'resources/dist' },
     { ...shared, entryPoints: { player: 'resources/js/player.js' }, outdir: 'resources/dist' },
     { ...shared, entryPoints: { stage: 'resources/js/stage.js' }, outdir: 'resources/dist' },

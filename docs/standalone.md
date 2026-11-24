@@ -64,3 +64,25 @@ PHP and JavaScript syntax, route registration and asset builds are checked. No t
 been created or run: the enclosing Spicy repository explicitly requires a separate request
 for tests. Authenticated recording, cross-origin uploads, identity changes and playback
 still need runtime verification before enabling capture.
+
+## Shared SPA client and application adapters
+
+The served ES module `/session-replay/scripts/client.js` exports `createReplayClient({
+configuration, origin, onState, refreshMs })`. `configuration(context, abortSignal)` is an
+application-owned authenticated request returning `{ enabled, configuration }`. Set a context
+with `{ key, scope, ...applicationCredentials }`; a changed key synchronously resets capture.
+`contextHeader(scope)` only returns a browser possession proof for the current scope.
+`stop()` cancels requests/timers and discards local events; `destroy()` also removes its listener.
+The client refreshes policy every minute, stops on failure/disable and restarts when allowed.
+The host owns authentication, authorization, context selection, storage, privacy and viewer access.
+No Vue, Axios, Filament, Spicy user model or product tenancy dependency belongs in this client.
+
+Each consumer pins this Git submodule to an explicit reviewed commit. Updating this fork
+alone never advances the application's pin. A native Filament adapter can use the same core
+with `SessionReplay::recorder()` in a panel render hook instead of the SPA client.
+
+Before enabling, run `session-replay:prepare-storage --expect-path=<absolute application path>
+--expect-database=<local database>` from that application. It verifies the application path,
+configured and actual write database, refuses non-local/non-MySQL targets, checks the connection
+before every query and applies only the package's additive migrations. It never provisions
+users, tenants or another application's database. Keep `run_migrations=false` in each adapter.

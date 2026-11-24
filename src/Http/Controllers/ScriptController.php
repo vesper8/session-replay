@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class ScriptController
 {
     protected const FILES = [
+        'client.js' => 'application/javascript; charset=utf-8',
         'recorder.js' => 'application/javascript; charset=utf-8',
         // An ES module the recorder imports when Assist is needed (same origin, the same version query).
         'assist.js' => 'application/javascript; charset=utf-8',
@@ -34,7 +35,7 @@ class ScriptController
         // The URL carries a version, so a year is safe.
         return response()->file($path, [
             'Content-Type' => self::FILES[$file],
-            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'Cache-Control' => $file === 'client.js' ? 'no-cache' : 'public, max-age=31536000, immutable',
         ]);
     }
 }

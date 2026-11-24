@@ -362,6 +362,9 @@ class SessionReplayManager
             'respectGpc' => (bool) config('session-replay.respect_gpc', false),
             'privacy' => [
                 'layoutOnly' => (bool) config('session-replay.privacy.layout_only', false),
+                'layoutFidelity' => (bool) config('session-replay.privacy.layout_fidelity', false),
+                'publicText' => array_values((array) config('session-replay.privacy.public_text', [])),
+                'pagePaths' => (array) config('session-replay.privacy.page_paths', []),
                 'maskAllInputs' => (bool) config('session-replay.privacy.mask_all_inputs', true),
                 'maskAllText' => (bool) config('session-replay.privacy.mask_all_text', false),
                 'maskTextSelector' => config('session-replay.privacy.mask_text_selector'),

@@ -1,4 +1,4 @@
-import { layoutPrivacy } from './lib/layout-privacy.js';
+import { layoutPrivacy, privatePageUrl } from './lib/layout-privacy.js';
 import { record } from '@rrweb/record';
 import { getRecordConsolePlugin } from '@rrweb/rrweb-plugin-console-record';
 import { onCLS, onINP, onLCP } from 'web-vitals';
@@ -37,7 +37,7 @@ import { createAssistHook } from './lib/assist-hook.js';
  */
 
 let config = window.__sessionReplay;
-let scrubLayout = layoutPrivacy();
+let scrubLayout = layoutPrivacy(config?.privacy);
 const EVENT_META = 4;
 const EVENT_INCREMENTAL = 3;
 const EVENT_CUSTOM = 5;
@@ -123,7 +123,7 @@ function configure(fresh) {
 
     reset();
     config = fresh;
-    scrubLayout = layoutPrivacy();
+    scrubLayout = layoutPrivacy(config?.privacy);
     window.__sessionReplay = fresh;
     flushInterval = fresh.flushInterval;
     onError = fresh.mode === 'on_error';
@@ -280,8 +280,9 @@ function mark(type, label, payload = {}, heldAt = null) {
 function note(type, label, payload, at, live) {
     if (config.privacy.layoutOnly) {
         if (type !== 'navigation') return;
-        label = 'Page';
-        payload = { url: 'https://replay.invalid/page' };
+        const page = privatePageUrl(location.href, config.privacy.pagePaths);
+        label = decodeURIComponent(new URL(page).pathname.slice(1));
+        payload = { url: page };
     }
     const text = String(label ?? '').slice(0, 480) || type;
 
@@ -1149,7 +1150,7 @@ function schedule() {
 
 /** The URL without the values of the query parameters privacy.redact_query lists. */
 function redacted(url) {
-    return config.privacy.layoutOnly ? 'https://replay.invalid/page' : redactUrl(url, config.privacy.redactQuery, location.href);
+    return config.privacy.layoutOnly ? privatePageUrl(url, config.privacy.pagePaths) : redactUrl(url, config.privacy.redactQuery, location.href);
 }
 
 /** Whether anything inside the element matches one of the selectors; a selector the browser rejects counts as a match. */
@@ -1448,6 +1449,11 @@ function watchVitals() {
 }
 
 function recordOptions() {
+    const publicWords = new Set(config.privacy.publicText || []);
+    const publicMask = (text, element) => {
+        const privateElement = config.privacy.maskTextSelector && element?.closest?.(config.privacy.maskTextSelector);
+        return !privateElement && publicWords.has(text.trim()) ? text : text.replace(/\S/g, '*');
+    };
     return {
         emit,
         plugins: consoleCapture ? [consoleCapture.plugin] : [],
@@ -1456,7 +1462,7 @@ function recordOptions() {
         maskInputOptions: inputMaskOptions(config.privacy.layoutOnly || config.privacy.maskAllInputs),
         maskTextSelector: config.privacy.layoutOnly || config.privacy.maskAllText ? '*' : simplifyMaskSelector(config.privacy.maskTextSelector) || undefined,
         // mask_all_text with an unmask selector: rrweb hands every text it masks to this, with its element.
-        maskTextFn: !config.privacy.layoutOnly && config.privacy.maskAllText && config.privacy.unmaskTextSelector ? textMasker(config.privacy.unmaskTextSelector, config.privacy.maskTextSelector) : undefined,
+        maskTextFn: publicWords.size ? publicMask : (!config.privacy.layoutOnly && config.privacy.maskAllText && config.privacy.unmaskTextSelector ? textMasker(config.privacy.unmaskTextSelector, config.privacy.maskTextSelector) : undefined),
         blockSelector: config.privacy.blockSelector || undefined,
         ignoreSelector: config.privacy.ignoreSelector || undefined,
         slimDOMOptions: 'all',
@@ -1499,7 +1505,7 @@ const navigation = navigationPause({
         }
 
         config = fresh;
-    scrubLayout = layoutPrivacy();
+    scrubLayout = layoutPrivacy(config?.privacy);
 
         if (startOnNextPage && !stopRecording) {
             start();
@@ -1700,7 +1706,7 @@ function restart(fresh) {
     overWindow = false;
     session = null;
     config = fresh;
-    scrubLayout = layoutPrivacy();
+    scrubLayout = layoutPrivacy(config?.privacy);
 
     start();
 }

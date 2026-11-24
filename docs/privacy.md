@@ -173,3 +173,20 @@ support-ticket association remain observable. This is pseudonymous diagnostic da
 than a promise of irreversible anonymity. Review representative product recordings before
 enabling it. See [standalone integration](standalone.md) and the enclosing application's
 [policy](../../../../docs-spicy/session-replay.md).
+
+### Observability fidelity
+
+An application can set `privacy.layout_fidelity=true` to preserve supported responsive CSS,
+nested selectors, safe CSS variables, presentation mutations and enumerated interface-state
+attributes while retaining opaque ids/classes and content/resource filtering. A small
+`privacy.public_text` list names exact static interface labels that may remain readable;
+inputs and elements matching `mask_text_selector` stay masked. This is an allowlist of literal
+public labels, never a selector that broadly unmasks a form, table or card.
+
+`privacy.page_paths` maps application-owned wildcard paths to static page labels. Recorded
+addresses use `https://replay.invalid/<label>`; ids, query strings and fragments do not enter
+replay navigation metadata. Unknown paths become `/page`. Changing these lists is an
+application privacy-policy change and requires reviewing representative captures.
+
+Replay playback controls are unchanged. Live Assist/remote control is separate and remains
+disabled in the initial adapters; it is not required for observing recorded sessions.

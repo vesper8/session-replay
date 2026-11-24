@@ -1,5 +1,22 @@
+export function privatePageUrl(value, paths = {}) {
+    let pathname;
+    try {
+        const parsed = new URL(value, location.href);
+        pathname = parsed.pathname;
+        if (parsed.origin === 'https://replay.invalid' && Object.values(paths).includes(decodeURIComponent(pathname.slice(1)))) return `https://replay.invalid${pathname}`;
+    } catch { return 'https://replay.invalid/page'; }
+    for (const [pattern, label] of Object.entries(paths)) {
+        const expression = pattern.split('*').map((part) => [...part].map((character) => /[a-z\d/_-]/i.test(character) ? character : String.fromCharCode(92) + character).join('')).join('.*');
+        if (new RegExp(`^${expression}$`).test(pathname)) return `https://replay.invalid/${encodeURIComponent(label)}`;
+    }
+    return 'https://replay.invalid/page';
+}
+
 // Layout capture keeps opaque selectors and presentation, without page content or resource addresses.
-export function layoutPrivacy() {
+export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePaths = {} } = {}) {
+    const publicWords = new Set(publicText);
+    const maskedText = (value) => publicWords.has(value.trim()) ? value : value.replace(/\S/g, '*');
+    const publicAttributes = new Map([['data-state', ['open', 'closed', 'active', 'inactive', 'checked', 'unchecked', 'on', 'off']], ['aria-expanded', ['true', 'false']], ['aria-selected', ['true', 'false']], ['aria-checked', ['true', 'false', 'mixed']], ['data-theme', ['light', 'dark']]]);
     const names = new Map();
     const opaque = (value) => {
         if (!names.has(value)) names.set(value, `sr${names.size + 1}`);
@@ -9,10 +26,12 @@ export function layoutPrivacy() {
     const identifiers = /([.#])((?:\\[a-f0-9]{1,6}\s?|\\.|[-\w\u0080-\uFFFF])+)/gi;
     const pseudo = new Set('root scope empty first-child last-child only-child first-of-type last-of-type only-of-type nth-child nth-last-child nth-of-type nth-last-of-type not is where has hover focus focus-visible focus-within active visited link checked disabled enabled required optional read-only read-write placeholder-shown before after first-letter first-line selection backdrop marker file-selector-button placeholder n odd even of'.split(' '));
     const selector = (value) => {
-        if (value.includes('[') || /["']|:lang\(|:dir\(|:state\(/i.test(value)) return '';
-        const selected = value.replace(identifiers, (_, prefix, name) => prefix + opaque(decode(name)));
+        let safe = value;
+        if (layoutFidelity) safe = safe.replace(/\[([\w-]+)(?:([~|^$*]?=)["']?([\w-]+)["']?)?\]/g, (whole, name, operator, text) => publicAttributes.has(name) && (!text || publicAttributes.get(name).includes(text)) ? `:sr-attribute-${[...publicAttributes.keys()].indexOf(name)}${text ? '-' + text : ''}` : whole);
+        if (safe.includes('[') || /["']|:lang\(|:dir\(|:state\(/i.test(safe)) return '';
+        const selected = safe.replace(identifiers, (_, prefix, name) => prefix + opaque(decode(name)));
         const words = selected.replace(/[.#]sr\d+/g, '').match(/[a-z_][\w-]*/gi) || [];
-        return words.every((word) => tags.has(word) || pseudo.has(word)) ? selected : '';
+        return words.every((word) => tags.has(word) || pseudo.has(word) || word.startsWith('sr-attribute-')) ? selected.replace(/:sr-attribute-(\d+)(?:-([\w-]+))?/g, (_, index, text) => `[${[...publicAttributes.keys()][Number(index)]}${text ? '="' + text + '"' : ''}]`) : '';
     };
     const declaration = document.createElement('span').style;
     const safeValue = (value) => !/["'\\@<>]|url\s*\(|attr\s*\(|image\s*\(|image-set\s*\(|\/\*/i.test(value);
@@ -29,7 +48,7 @@ export function layoutPrivacy() {
             const words = variables(value).replace(/var\(\s*--sr\d+/g, 'var(').replace(/#[a-f\d]+/gi, '').replace(/(?:\d*\.)?\d+(?:e[+-]?\d+)?(?:px|rem|em|ex|ch|vh|vw|vmin|vmax|dvh|dvw|deg|rad|turn|ms|s|fr|%|pt|pc|cm|mm|in)?/gi, '').match(/[a-z_][\w-]*/gi) || [];
             if (words.some((word) => !keywords.has(word.toLowerCase()))) continue;
             // Custom properties can carry arbitrary application strings, so only numeric/colour values survive.
-            if (property.startsWith('--') && !/^[\d\s.,%#()+*/-]+(?:px|rem|em|vh|vw|deg|ms|s)?$|^#[a-f\d]{3,8}$|^(?:rgb|hsl)a?\([\d\s.,%/+-]+\)$/i.test(value.trim())) continue;
+            if (!layoutFidelity && property.startsWith('--') && !/^[\d\s.,%#()+*/-]+(?:px|rem|em|vh|vw|deg|ms|s)?$|^#[a-f\d]{3,8}$|^(?:rgb|hsl)a?\([\d\s.,%/+-]+\)$/i.test(value.trim())) continue;
             result.push(`${property.startsWith('--') ? variables(property) : property}:${variables(value)}${declaration.getPropertyPriority(property) ? '!important' : ''}`);
         }
         return result.join(';');
@@ -42,10 +61,15 @@ export function layoutPrivacy() {
             const rules = (list) => [...list].map((rule) => {
                 if (rule.type === 1) {
                     const selected = selector(rule.selectorText);
-                    return selected ? `${selected}{${declarations(rule.style.cssText)}}` : '';
+                    return selected ? `${selected}{${declarations(rule.style.cssText)};${layoutFidelity && rule.cssRules ? rules(rule.cssRules) : ''}}` : '';
                 }
                 // Other rules can contain URLs, arbitrary strings, font data or application identifiers.
-                if (rule.type === 4) return `@media all{${rules(rule.cssRules)}}`;
+                if (rule.type === 4) {
+                    const query = rule.conditionText;
+                    const allowed = new Set('all screen print not only and or min-width max-width min-height max-height width height orientation portrait landscape prefers-color-scheme dark light prefers-reduced-motion reduce no-preference hover any-hover pointer any-pointer fine coarse none resolution min-resolution max-resolution dppx dpi px em rem'.split(' '));
+                    const words = query.match(/[a-z-]+/gi) || [];
+                    return layoutFidelity && words.every((word) => allowed.has(word)) ? `@media ${query}{${rules(rule.cssRules)}}` : `@media all{${rules(rule.cssRules)}}`;
+                }
                 if (rule.type === 12) return rules(rule.cssRules);
                 if (rule.constructor.name === 'CSSLayerBlockRule') return `@layer{${rules(rule.cssRules)}}`;
                 return '';
@@ -86,6 +110,7 @@ export function layoutPrivacy() {
         for (const name of Object.keys(values || {})) {
             const value = values[name];
             const lower = name.toLowerCase();
+            if (layoutFidelity && publicAttributes.get(lower)?.includes(value)) continue;
             if (!allowedAttributes.has(lower)) {
                 delete values[name];
                 continue;
@@ -108,7 +133,7 @@ export function layoutPrivacy() {
     const tags = new Set(('html head body title meta link style div span p a button input textarea select option optgroup label form fieldset legend main section article aside header footer nav h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr td th col colgroup caption pre code br hr strong em b i u s small sub sup details summary dialog figure figcaption picture source img video audio canvas iframe object embed svg g path circle ellipse rect line polyline polygon defs symbol use marker mask clipPath pattern linearGradient radialGradient stop text tspan textPath foreignObject').split(' '));
     function node(root, parentTag = '') {
         if (root.type === 1) { root.name = 'html'; root.publicId = ''; root.systemId = ''; }
-        if (root.type === 3) root.textContent = parentTag === 'style' ? stylesheet(root.textContent) : root.textContent.replace(/\S/g, '*');
+        if (root.type === 3) root.textContent = parentTag === 'style' ? stylesheet(root.textContent) : maskedText(root.textContent);
         if (root.type === 2) {
             if (!tags.has(root.tagName)) root.tagName = 'div';
             attributes(root.attributes);
@@ -119,7 +144,7 @@ export function layoutPrivacy() {
     }
 
     return (event) => {
-        if (event.type === 4) event.data.href = 'https://replay.invalid/page';
+        if (event.type === 4) event.data.href = privatePageUrl(event.data.href, pagePaths);
         if (event.type === 2) node(event.data.node);
         if (event.type === 3) {
             const data = event.data;
@@ -128,7 +153,7 @@ export function layoutPrivacy() {
                 for (const add of data.adds || []) node(add.node);
                 for (const change of data.attributes || []) attributes(change.attributes);
                 // A text mutation can target a stylesheet; its contents cannot be inferred from an rrweb id here.
-                for (const change of data.texts || []) change.value = '';
+                for (const change of data.texts || []) change.value = layoutFidelity ? maskedText(change.value) : '';
             }
             if (data.source === 5 && typeof data.text === 'string') data.text = '***';
         }
