@@ -180,7 +180,7 @@ An application can set `privacy.layout_fidelity=true` to serialize an allowlist 
 presentation styles on recorded elements and attribute mutations. Raw stylesheets are omitted;
 ids/classes remain opaque, resource URLs are removed, and font families use a system fallback.
 This preserves complex Vue/Filament layouts without retaining arbitrary CSS selectors or
-values. A settling snapshot after two seconds and activity-driven thirty-second checkouts
+values. Settling snapshots after two and ten seconds and activity-driven thirty-second checkouts
 refresh presentation after initial rendering and later interface changes. It adds work and bytes at snapshot time; inherited theme changes, pseudo-elements,
 custom fonts and media are not reproduced exactly and need representative review. A small
 `privacy.public_text` list names exact static interface labels that may remain readable;

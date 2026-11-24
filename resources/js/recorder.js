@@ -1647,12 +1647,12 @@ function begin() {
         return false;
     }
 
-    const settledSnapshot = config.privacy.layoutFidelity ? setTimeout(() => {
+    const settledSnapshots = config.privacy.layoutFidelity ? [2000, 10_000].map((delay) => setTimeout(() => {
         if (stopRrweb && !stopped) record.takeFullSnapshot();
-    }, 2000) : null;
+    }, delay)) : [];
 
     stopRecording = () => {
-        clearTimeout(settledSnapshot);
+        settledSnapshots.forEach(clearTimeout);
         const stopNow = stopRrweb;
 
         stopRrweb = null;
