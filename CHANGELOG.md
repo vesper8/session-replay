@@ -5,7 +5,7 @@ All notable changes to `packstub/session-replay` are documented here.
 ## Spicy fork adapters — 2026-11-24
 
 - One framework-neutral browser client serves Vue integrations in multiple applications.
-- Privacy policies can preserve safe interface labels and styling with sanitized page categories.
+- Privacy policies preserve safe interface labels, computed presentation and sanitized page categories.
 - Guarded storage preparation verifies the application path and local write database before additive migrations.
 
 ## Spicy fork — 2026-11-23

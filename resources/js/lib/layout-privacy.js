@@ -13,7 +13,7 @@ export function privatePageUrl(value, paths = {}) {
 }
 
 // Layout capture keeps opaque selectors and presentation, without page content or resource addresses.
-export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePaths = {} } = {}) {
+export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePaths = {} } = {}, nodeOf = () => null) {
     const publicWords = new Set(publicText);
     const maskedText = (value) => publicWords.has(value.trim()) ? value : value.replace(/\S/g, '*');
     const publicAttributes = new Map([['data-state', ['open', 'closed', 'active', 'inactive', 'checked', 'unchecked', 'on', 'off']], ['aria-expanded', ['true', 'false']], ['aria-selected', ['true', 'false']], ['aria-checked', ['true', 'false', 'mixed']], ['data-theme', ['light', 'dark']]]);
@@ -55,6 +55,7 @@ export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePat
     }
 
     function stylesheet(text) {
+        if (layoutFidelity) return '';
         try {
             const sheet = new CSSStyleSheet();
             sheet.replaceSync(text);
@@ -102,6 +103,22 @@ export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePat
         return result;
     }
 
+    const presentationProperties = 'display position top right bottom left z-index width height min-width min-height max-width max-height box-sizing margin-top margin-right margin-bottom margin-left padding-top padding-right padding-bottom padding-left border-top-width border-right-width border-bottom-width border-left-width border-top-style border-right-style border-bottom-style border-left-style border-top-color border-right-color border-bottom-color border-left-color border-top-left-radius border-top-right-radius border-bottom-left-radius border-bottom-right-radius background-color color opacity visibility overflow-x overflow-y flex-direction flex-wrap flex-grow flex-shrink flex-basis align-items align-content align-self justify-content justify-items justify-self row-gap column-gap grid-template-columns grid-template-rows grid-auto-columns grid-auto-rows grid-auto-flow grid-column-start grid-column-end grid-row-start grid-row-end order transform transform-origin font-size font-weight font-style line-height letter-spacing white-space text-align text-transform text-decoration-line text-decoration-color text-decoration-style vertical-align word-break overflow-wrap text-overflow box-shadow outline-color outline-width outline-style outline-offset pointer-events fill stroke stroke-width'.split(' ');
+    function presentation(id) {
+        const element = nodeOf(id);
+        if (!element || element.nodeType !== 1) return '';
+        const computed = element.ownerDocument.defaultView.getComputedStyle(element);
+        const values = [];
+        for (const property of presentationProperties) {
+            const value = computed.getPropertyValue(property);
+            if (!value || !safeValue(value) || /[\[\]]/.test(value)) continue;
+            const words = value.replace(/#[a-f\d]+/gi, '').replace(/(?:\d*\.)?\d+(?:e[+-]?\d+)?(?:px|rem|em|vh|vw|deg|rad|turn|ms|s|fr|%)?/gi, '').match(/[a-z_][\w-]*/gi) || [];
+            if (words.some((word) => !keywords.has(word.toLowerCase()))) continue;
+            values.push(`${property}:${value}`);
+        }
+        return values.join(';') + ';font-family:system-ui,sans-serif';
+    }
+
     const numeric = new Set(['width', 'height', 'x', 'y', 'x1', 'x2', 'y1', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'viewbox', 'points', 'colspan', 'rowspan', 'span', 'start', 'rr_width', 'rr_height', 'rr_scrollleft', 'rr_scrolltop']);
     const states = new Set(['checked', 'selected', 'disabled', 'multiple', 'hidden', 'open', 'readonly', 'required']);
     const types = new Set(['button', 'submit', 'reset', 'checkbox', 'radio', 'text', 'password', 'email', 'number', 'search', 'range', 'date', 'hidden', 'file', 'tel', 'url', 'time', 'color']);
@@ -137,6 +154,7 @@ export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePat
         if (root.type === 2) {
             if (!tags.has(root.tagName)) root.tagName = 'div';
             attributes(root.attributes);
+            if (layoutFidelity) root.attributes.style = presentation(root.id);
             if (root.tagName === 'iframe') root.childNodes = [];
         }
         if ([4, 5].includes(root.type)) root.textContent = '';
@@ -151,7 +169,10 @@ export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePat
             if (![0, 1, 2, 3, 4, 5, 6, 12].includes(data.source)) return false;
             if (data.source === 0) {
                 for (const add of data.adds || []) node(add.node);
-                for (const change of data.attributes || []) attributes(change.attributes);
+                for (const change of data.attributes || []) {
+                    attributes(change.attributes);
+                    if (layoutFidelity) change.attributes.style = presentation(change.id);
+                }
                 // A text mutation can target a stylesheet; its contents cannot be inferred from an rrweb id here.
                 for (const change of data.texts || []) change.value = layoutFidelity ? maskedText(change.value) : '';
             }

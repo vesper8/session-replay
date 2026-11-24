@@ -176,9 +176,12 @@ enabling it. See [standalone integration](standalone.md) and the enclosing appli
 
 ### Observability fidelity
 
-An application can set `privacy.layout_fidelity=true` to preserve supported responsive CSS,
-nested selectors, safe CSS variables, presentation mutations and enumerated interface-state
-attributes while retaining opaque ids/classes and content/resource filtering. A small
+An application can set `privacy.layout_fidelity=true` to serialize an allowlist of computed
+presentation styles on recorded elements and attribute mutations. Raw stylesheets are omitted;
+ids/classes remain opaque, resource URLs are removed, and font families use a system fallback.
+This preserves complex Vue/Filament layouts without retaining arbitrary CSS selectors or
+values. It adds work and bytes at snapshot time; inherited theme changes, pseudo-elements,
+custom fonts and media are not reproduced exactly and need representative review. A small
 `privacy.public_text` list names exact static interface labels that may remain readable;
 inputs and elements matching `mask_text_selector` stay masked. This is an allowlist of literal
 public labels, never a selector that broadly unmasks a form, table or card.

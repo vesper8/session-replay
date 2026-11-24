@@ -37,7 +37,7 @@ import { createAssistHook } from './lib/assist-hook.js';
  */
 
 let config = window.__sessionReplay;
-let scrubLayout = layoutPrivacy(config?.privacy);
+let scrubLayout = layoutPrivacy(config?.privacy, (id) => record.mirror.getNode(id));
 const EVENT_META = 4;
 const EVENT_INCREMENTAL = 3;
 const EVENT_CUSTOM = 5;
@@ -123,7 +123,7 @@ function configure(fresh) {
 
     reset();
     config = fresh;
-    scrubLayout = layoutPrivacy(config?.privacy);
+    scrubLayout = layoutPrivacy(config?.privacy, (id) => record.mirror.getNode(id));
     window.__sessionReplay = fresh;
     flushInterval = fresh.flushInterval;
     onError = fresh.mode === 'on_error';
@@ -1505,7 +1505,7 @@ const navigation = navigationPause({
         }
 
         config = fresh;
-    scrubLayout = layoutPrivacy(config?.privacy);
+    scrubLayout = layoutPrivacy(config?.privacy, (id) => record.mirror.getNode(id));
 
         if (startOnNextPage && !stopRecording) {
             start();
@@ -1706,7 +1706,7 @@ function restart(fresh) {
     overWindow = false;
     session = null;
     config = fresh;
-    scrubLayout = layoutPrivacy(config?.privacy);
+    scrubLayout = layoutPrivacy(config?.privacy, (id) => record.mirror.getNode(id));
 
     start();
 }
