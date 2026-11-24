@@ -1470,6 +1470,7 @@ function recordOptions() {
         recordCanvas: false,
         collectFonts: false,
         sampling: config.size.sampling,
+        checkoutEveryNms: config.privacy.layoutFidelity ? 30_000 : undefined,
     };
 }
 
@@ -1646,7 +1647,12 @@ function begin() {
         return false;
     }
 
+    const settledSnapshot = config.privacy.layoutFidelity ? setTimeout(() => {
+        if (stopRrweb && !stopped) record.takeFullSnapshot();
+    }, 2000) : null;
+
     stopRecording = () => {
+        clearTimeout(settledSnapshot);
         const stopNow = stopRrweb;
 
         stopRrweb = null;
