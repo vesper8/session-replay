@@ -1,11 +1,10 @@
 # Changelog
 
-- Refresh the fidelity snapshot at ten seconds as well as two seconds for slower SPA rendering.
-
-
 All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork adapters — 2026-11-24
+
+- Refresh the fidelity snapshot at ten seconds as well as two seconds for slower SPA rendering.
 
 - One framework-neutral browser client serves Vue integrations in multiple applications.
 - Privacy policies preserve safe interface labels, computed presentation and sanitized page categories.
