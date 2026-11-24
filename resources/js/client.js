@@ -1,16 +1,18 @@
 // Framework-neutral SPA adapter. Authentication, scope and configuration transport belong to the host application.
-export function createReplayClient({ configuration, origin = location.origin, onState = () => {}, refreshMs = 60_000 }) {
+export function createReplayClient({ configuration, origin = location.origin, onState = () => {}, refreshMs = 60_000, resumeOnLoad = false }) {
     let context = null;
     let revision = 0;
     let pending = null;
     let timer = null;
     let loading = null;
     let policy = null;
+    let firstDocumentStart = resumeOnLoad && !window.SessionReplay;
     const state = (phase, id = null) => onState({ phase, id, scope: context?.scope ?? null });
     const sessionChanged = (event) => { if (context) state('recording', event.detail.id); };
     window.addEventListener('session-replay:session', sessionChanged);
 
     function stop() {
+        firstDocumentStart = false;
         revision++;
         clearTimeout(timer);
         pending?.abort();
@@ -43,6 +45,7 @@ export function createReplayClient({ configuration, origin = location.origin, on
             const result = await configuration(context, pending.signal);
             if (current !== revision) return;
             if (!result.enabled) {
+                firstDocumentStart = false;
                 window.SessionReplay?.reset();
                 policy = null;
                 state('disabled');
@@ -53,7 +56,8 @@ export function createReplayClient({ configuration, origin = location.origin, on
             const recorder = await install(settings);
             if (current !== revision) return;
             if (policy !== nextPolicy || !recorder.isRecording()) {
-                recorder.configure(settings);
+                recorder.configure(settings, { resumeOnLoad: firstDocumentStart });
+                firstDocumentStart = false;
                 policy = nextPolicy;
             }
             state(recorder.isRecording() ? 'recording' : 'disabled', recorder.sessionId());
@@ -61,6 +65,7 @@ export function createReplayClient({ configuration, origin = location.origin, on
             if (current !== revision) return;
             window.SessionReplay?.reset();
             policy = null;
+            firstDocumentStart = false;
             state('unavailable');
         } finally {
             if (current === revision) {
@@ -73,7 +78,7 @@ export function createReplayClient({ configuration, origin = location.origin, on
     return {
         setContext(next) {
             if (next?.key && next.key === context?.key) { context = next; return; }
-            stop();
+            if (context || !next?.key || !firstDocumentStart) stop();
             if (!next?.key) return;
             context = next;
             state('loading');

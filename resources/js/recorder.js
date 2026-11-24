@@ -118,10 +118,11 @@ let maxWindowChars = onError ? config.onError.maxWindowChars || 5_000_000 : 0;
 let matches = config ? attributeMatcher(config.size.stripAttributes, config.size.keepAttributes) : null;
 const canHash = !!(window.crypto && window.crypto.subtle && window.TextEncoder);
 
-function configure(fresh) {
+function configure(fresh, { resumeOnLoad = false } = {}) {
     if (!fresh || !fresh.token || !fresh.identity) throw new Error('Signed recorder configuration is required.');
 
-    reset();
+    // A fresh document can reuse its tab state. loadSession checks the signed identity and idle timeout.
+    if (!resumeOnLoad || session || stopRecording) reset();
     config = fresh;
     scrubLayout = layoutPrivacy(config?.privacy, (id) => record.mirror.getNode(id));
     window.__sessionReplay = fresh;
@@ -1276,10 +1277,6 @@ function watchLivewire() {
 
     window.Livewire ? hook() : document.addEventListener('livewire:init', hook, { once: true });
 
-    // wire:navigate swaps the page without a load; the recording restarted with a snapshot of it (see
-    // watchNavigation, registered first), the index gets the page. Livewire also fires it on the first load,
-    // which start() already marked.
-    document.addEventListener('livewire:navigated', () => markPage());
 }
 
 /**
@@ -1542,7 +1539,10 @@ function watchNavigation() {
         window.__sessionReplay = undefined;
         navigation.navigating(!!stopRrweb && !stopped);
     });
-    document.addEventListener('livewire:navigated', () => navigation.navigated());
+    document.addEventListener('livewire:navigated', () => {
+        navigation.navigated();
+        if (stopRrweb && !navigation.isExcluded()) markPage();
+    });
 }
 
 /**

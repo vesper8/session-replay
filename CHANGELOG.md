@@ -2,6 +2,10 @@
 
 All notable changes to `packstub/session-replay` are documented here.
 
+## Spicy fork — 2026-11-25
+
+- Page-based adapters can continue a recording across document loads in the same tab. Livewire page markers also work when Livewire error capture is off.
+
 ## Spicy fork adapters — 2026-11-24
 
 - Refresh the fidelity snapshot at ten seconds as well as two seconds for slower SPA rendering.

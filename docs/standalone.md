@@ -74,6 +74,8 @@ with `{ key, scope, ...applicationCredentials }`; a changed key synchronously re
 `contextHeader(scope)` only returns a browser possession proof for the current scope.
 `stop()` cancels requests/timers and discards local events; `destroy()` also removes its listener.
 The client refreshes policy every minute, stops on failure/disable and restarts when allowed.
+A page-based host can opt into `resumeOnLoad: true` to continue the current browser tab’s recording on the first authorized configuration in a new document. The recorder checks its identity and idle timeout. Bind identity to the login session when a fresh login should split playback. For Livewire navigation, supply fresh signed settings synchronously on each eligible page so the native navigation observer can resume with a full snapshot.
+
 The host owns authentication, authorization, context selection, storage, privacy and viewer access.
 No Vue, Axios, Filament, Spicy user model or product tenancy dependency belongs in this client.
 
