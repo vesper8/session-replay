@@ -2,6 +2,7 @@
 
 return [
     'erase' => [
+        'incomplete' => 'Ștergerea s-a oprit. Selectează înregistrările rămase și încearcă din nou.',
         'one' => 'Șterge înregistrarea',
         'selected' => 'Șterge selecția',
         'heading' => 'Ștergi definitiv aceste înregistrări?',

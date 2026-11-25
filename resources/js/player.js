@@ -108,17 +108,6 @@ async function load(manifest, progress) {
 
     restoreSnapshots(events, snapshots);
 
-    // Older layout recordings renamed custom elements to div but kept rrweb's registration flag.
-    for (const event of events) {
-        const pending = event.type === 2 ? [event.data.node] : (event.data?.adds || []).map((add) => add.node);
-        while (pending.length) {
-            const node = pending.pop();
-            if (!node) continue;
-            if (node.isCustom && !node.tagName?.includes('-')) delete node.isCustom;
-            for (const child of node.childNodes || []) pending.push(child);
-        }
-    }
-
     const texts = new Map();
 
     await inBatches(referencedAssets(events), 4, async (hash) => {

@@ -2,6 +2,7 @@
 
 return [
     'erase' => [
+        'incomplete' => 'Deletion stopped. Select the remaining recordings and retry.',
         'one' => 'Delete replay',
         'selected' => 'Delete selected',
         'heading' => 'Permanently delete these replays?',

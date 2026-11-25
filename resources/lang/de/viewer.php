@@ -2,6 +2,7 @@
 
 return [
     'erase' => [
+        'incomplete' => 'Löschen angehalten. Wählen Sie die übrigen Aufzeichnungen aus und versuchen Sie es erneut.',
         'one' => 'Aufzeichnung löschen',
         'selected' => 'Auswahl löschen',
         'heading' => 'Aufzeichnungen endgültig löschen?',

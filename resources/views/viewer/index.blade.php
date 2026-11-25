@@ -41,6 +41,9 @@
 
     @php($manage = \Packstub\SessionReplay\Support\RecordingManagement::allowed())
     @if ($manage)
+        @if (session('erase-incomplete'))
+            <p role="alert">{{ __('session-replay::viewer.erase.incomplete') }}</p>
+        @endif
         @if (session('replays-erased'))
             <p role="status">{{ __('session-replay::viewer.erase.done', ['count' => session('replays-erased')]) }}</p>
         @endif

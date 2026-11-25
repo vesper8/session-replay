@@ -207,6 +207,12 @@ export function referencedAssets(events) {
 /** Put the stylesheets back; a hash without text becomes an empty sheet rather than a comment that hides the gap. */
 export function restoreAssets(events, texts) {
     for (const event of events) {
+        // Historical layout snapshots kept the rrweb custom-element flag on tags renamed to ordinary divs.
+        for (const root of roots(event)) {
+            walk(root, (node) => {
+                if (node.isCustom && !node.tagName?.includes('-')) delete node.isCustom;
+            });
+        }
         for (const slot of styleSlots(event)) {
             const hash = assetHash(slot.text);
 

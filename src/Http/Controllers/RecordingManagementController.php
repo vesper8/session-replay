@@ -27,9 +27,18 @@ final class RecordingManagementController
         $ids = $request->validate(['ids' => 'required|array|min:1|max:100', 'ids.*' => 'required|uuid|distinct'])['ids'];
         $sessions = SessionReplay::visibleTo(ReplaySession::query())->whereKey($ids)->get();
         abort_unless($sessions->count() === count($ids) && $sessions->every(fn ($session) => SessionReplay::check($session)), 403);
+        $erased = 0;
         foreach ($sessions as $session) {
-            $management->erase($session, $storage);
+            try {
+                $management->erase($session, $storage);
+                $erased++;
+            } catch (\RuntimeException $e) {
+                report($e);
+                return redirect()->route('session-replay.index')
+                    ->with('replays-erased', $erased)->with('erase-incomplete', true);
+            }
         }
+
         return redirect()->route('session-replay.index')->with('replays-erased', count($ids));
     }
 }

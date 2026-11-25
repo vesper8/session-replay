@@ -375,7 +375,9 @@ class SessionReplayManager
                 'pagePaths' => (array) config('session-replay.privacy.page_paths', []),
                 'maskAllInputs' => (bool) config('session-replay.privacy.mask_all_inputs', true),
                 'maskAllText' => (bool) config('session-replay.privacy.mask_all_text', false),
-                'maskTextSelector' => config('session-replay.privacy.mask_text_selector'),
+                'maskTextSelector' => $managed && ! $anonymous
+                    ? config('session-replay.privacy.readable_mask_text_selector', config('session-replay.privacy.mask_text_selector'))
+                    : config('session-replay.privacy.mask_text_selector'),
                 'unmaskTextSelector' => config('session-replay.privacy.unmask_text_selector'),
                 'blockSelector' => config('session-replay.privacy.block_selector'),
                 'ignoreSelector' => config('session-replay.privacy.ignore_selector'),

@@ -2,6 +2,7 @@
 
 return [
     'erase' => [
+        'incomplete' => 'La eliminación se detuvo. Seleccione las grabaciones restantes y vuelva a intentarlo.',
         'one' => 'Eliminar grabación',
         'selected' => 'Eliminar selección',
         'heading' => '¿Eliminar definitivamente estas grabaciones?',
