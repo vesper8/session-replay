@@ -2,6 +2,7 @@
 // app's language as data-labels, an element mounted by hand may carry none, and a key a given set leaves out keeps
 // its English text so that nothing reads "undefined".
 export const TEXT = {
+    fullscreen: 'Toggle fullscreen',
     loading: 'Loading the recording…',
     forbidden: 'You are not allowed to watch this recording.',
     failed: 'The recording could not be loaded.',

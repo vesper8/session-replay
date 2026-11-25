@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'fullscreen' => 'Toggle fullscreen',
 
     'loading' => 'Loading the recording…',
     'forbidden' => 'You are not allowed to watch this recording.',

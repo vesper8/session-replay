@@ -558,8 +558,9 @@ async function mount(root, options = {}) {
     const startedAt = events[0].timestamp;
     const size = () => {
         const fullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-        if (fullscreen && stage.contains(fullscreen)) {
-            return { width: fullscreen.clientWidth, height: Math.max(1, fullscreen.clientHeight - 80) };
+        const expanded = fullscreen && stage.contains(fullscreen) ? fullscreen : stage.classList.contains('sr-expanded') ? stage : null;
+        if (expanded) {
+            return { width: expanded.clientWidth, height: Math.max(1, expanded.clientHeight - 80) };
         }
         const width = Math.max(1, stage.clientWidth);
 
@@ -623,11 +624,39 @@ async function mount(root, options = {}) {
         }, 150);
     };
 
+    // The bundled controller's last button is fullscreen. Keep the iframe mounted even if native fullscreen is denied.
+    const expand = stage.querySelector('.rr-controller__btns > button:last-child');
+    const collapse = () => {
+        stage.classList.remove('sr-expanded');
+        resize();
+    };
+    const escape = (event) => {
+        if (event.key === 'Escape' && stage.classList.contains('sr-expanded')) collapse();
+    };
+    const toggle = async (event) => {
+        event.stopImmediatePropagation();
+        if (document.fullscreenElement) return document.exitFullscreen();
+        if (document.webkitFullscreenElement) return document.webkitExitFullscreen();
+        if (stage.classList.contains('sr-expanded')) return collapse();
+        try {
+            const request = stage.requestFullscreen || stage.webkitRequestFullscreen;
+            if (request) { await request.call(stage); return; }
+        } catch {
+            // Windowed browsers can deny the native request while allowing a viewport-sized player.
+        }
+        stage.classList.add('sr-expanded');
+        resize();
+    };
+    expand?.setAttribute('aria-label', text.fullscreen);
+    expand?.addEventListener('click', toggle, true);
+    document.addEventListener('keydown', escape);
     document.addEventListener('fullscreenchange', resize);
     document.addEventListener('webkitfullscreenchange', resize);
     window.addEventListener('resize', resize);
     state.stops.push(() => {
         clearTimeout(resizing);
+        expand?.removeEventListener('click', toggle, true);
+        document.removeEventListener('keydown', escape);
         document.removeEventListener('fullscreenchange', resize);
         document.removeEventListener('webkitfullscreenchange', resize);
         window.removeEventListener('resize', resize);

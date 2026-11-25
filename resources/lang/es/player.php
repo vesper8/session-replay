@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'fullscreen' => 'Alternar pantalla completa',
 
     'loading' => 'Cargando la grabación…',
     'forbidden' => 'No tienes permiso para ver esta grabación.',

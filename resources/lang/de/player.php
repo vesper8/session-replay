@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'fullscreen' => 'Vollbild umschalten',
 
     'loading' => 'Aufzeichnung wird geladen…',
     'forbidden' => 'Du darfst diese Aufzeichnung nicht ansehen.',

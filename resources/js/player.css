@@ -329,3 +329,18 @@
     color: var(--sr-pointer);
     font-weight: 500;
 }
+
+.sr-player__stage.sr-expanded,
+.sr-player__stage:fullscreen {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    z-index: 2147483647;
+    box-sizing: border-box;
+    background: white;
+    border: 0;
+    border-radius: 0;
+}
+.sr-player__stage.sr-expanded .sr-player__actions,
+.sr-player__stage:fullscreen .sr-player__actions { display: none; }

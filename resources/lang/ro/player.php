@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'fullscreen' => 'Comută ecranul complet',
 
     'loading' => 'Se încarcă înregistrarea…',
     'forbidden' => 'Nu ai voie să urmărești această înregistrare.',
