@@ -249,9 +249,7 @@ class SessionReplayManager
             return false;
         }
 
-        $own = trim((string) config('session-replay.path', 'session-replay'), '/');
-
-        if ($page && ($request->is($own, $own.'/*') || $this->isExcluded($request))) {
+        if ($page && ($this->isReplayPath($request) || $this->isExcluded($request))) {
             return false;
         }
 
@@ -270,6 +268,14 @@ class SessionReplayManager
     public function sharesSnapshots(?Request $request = null): bool
     {
         return $this->requestMatches($request ?? request(), config('session-replay.snapshots.share_paths', []), config('session-replay.snapshots.share_routes', []));
+    }
+
+    public function isReplayPath(Request $request): bool
+    {
+        $current = trim((string) config('session-replay.path', 'session-replay'), '/');
+        $previous = trim((string) config('session-replay.previous_path'), '/');
+
+        return $request->is($current, $current.'/*') || ($previous !== '' && $request->is($previous, $previous.'/*'));
     }
 
     /**

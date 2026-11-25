@@ -249,6 +249,7 @@ return [
     */
 
     'path' => 'session-replay',
+    'previous_path' => null,
 
     'domain' => null,
 

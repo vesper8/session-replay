@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Facade;
 use Packstub\SessionReplay\SessionReplayManager;
 
 /**
+ * @method static bool isReplayPath(\Illuminate\Http\Request $request)
  * @method static ?array recorderConfiguration(array $options = [])
  * @method static \Packstub\SessionReplay\SessionReplayManager recordWhen(\Closure $callback)
  * @method static \Packstub\SessionReplay\SessionReplayManager userUsing(\Closure $callback)

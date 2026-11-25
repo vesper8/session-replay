@@ -47,9 +47,7 @@ class AddReplayContext
                 }
 
                 // Not the package's own routes: an upload or the viewer failing is no error of the recorded page.
-                $path = trim((string) config('session-replay.path', 'session-replay'), '/');
-
-                if (! $request->is($path, $path.'/*')) {
+                if (! SessionReplay::isReplayPath($request)) {
                     app(ServerErrors::class)->forRecording(strtolower($id), $request, is_string($key) && $key !== '' ? $key : null);
                 }
             }

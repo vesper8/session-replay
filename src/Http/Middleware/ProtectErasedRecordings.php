@@ -21,7 +21,7 @@ final class ProtectErasedRecordings
             }
             $meta = $request->input('meta');
             $meta = is_string($meta) && strlen($meta) <= 1_000_000 ? json_decode($meta, true) : null;
-            $assets = ! $request->routeIs('session-replay.ingest') || ! empty($meta['assets']) || ! empty($meta['snapshots']);
+            $assets = ! $request->routeIs('session-replay.ingest', 'session-replay.previous.ingest') || ! empty($meta['assets']) || ! empty($meta['snapshots']);
             return $assets ? RecordingManagement::locked('assets', fn () => $next($request)) : $next($request);
         };
         try {

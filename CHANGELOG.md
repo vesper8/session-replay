@@ -4,6 +4,8 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-25
 
+- A previous route prefix can forward bookmarks and keep open recorders uploading during a move.
+
 - Managed pilots can index errors, failed requests, vitals, rage clicks and problem reports while retaining sanitized layouts. Select an indexed event on the playback bar to seek and open its details.
 - Panel adapters can limit the replay context cookie to their own route prefix.
 - Fix fullscreen sizing and playback of historical snapshots with anonymized custom elements.

@@ -100,7 +100,8 @@ Share pages that look the same for everyone who opens them: a pricing page, the 
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `path` | `session-replay` | Prefix of every package route. |
+| `path` | `session-replay` | Canonical prefix for playback, scripts and uploads. |
+| `previous_path` | `null` | Optional former prefix. GET links redirect with their query string. Open recorders can finish uploading chunks, assets and snapshots through the original ingest endpoints. |
 | `domain` | `null` | Restrict the routes to one domain. |
 | `ingest.middleware` | `[]` | Extra middleware for the upload routes. None is needed: identity comes from the signed token. |
 | `ingest.requests_per_minute` | `240` | Uploads per minute per person (for guests, per rendered page: a value in the signed token, not one the browser picks). `null` turns it off. |

@@ -234,15 +234,7 @@ class SessionReplayServiceProvider extends PackageServiceProvider
         ]), function () use ($uuid): void {
             Route::get('scripts/{file}', ScriptController::class)->where('file', '[a-z.]+')->middleware(RecorderCors::class)->name('script');
 
-
-            // CORS outermost (a 429 or 503 keeps its headers), then the per-person limit, then the cap for the whole
-            // app (ingest.global_requests_per_minute).
-            Route::middleware([HandleReplayCors::class.':ingest', ...(array) config('session-replay.ingest.middleware', []), ThrottleIngest::class.':session-replay', CapIngest::class, ...(config('session-replay.viewer.manage') ? [ProtectErasedRecordings::class] : [])])->group(function (): void {
-                Route::post('ingest', [IngestController::class, 'store'])->name('ingest');
-                Route::post('ingest/asset', [IngestController::class, 'asset'])->name('ingest.asset');
-                Route::post('ingest/snapshot', [IngestController::class, 'snapshot'])->name('ingest.snapshot');
-            });
-
+            $this->registerIngestRoutes();
             $this->registerStandaloneRoutes();
 
             if (config('session-replay.assist.enabled', false)) {
@@ -271,6 +263,36 @@ class SessionReplayServiceProvider extends PackageServiceProvider
                 }
             });
         });
+
+        $previous = trim((string) config('session-replay.previous_path'), '/');
+        $current = trim((string) config('session-replay.path', 'session-replay'), '/');
+        if ($previous !== '' && $previous !== $current) {
+            Route::group(array_filter(['prefix' => $previous, 'domain' => config('session-replay.domain'), 'as' => 'session-replay.previous.']), function () use ($previous, $current): void {
+                $this->registerIngestRoutes();
+                Route::get('{rest?}', static function (Request $request) use ($previous, $current) {
+                    $suffix = substr($request->getPathInfo(), strlen('/'.$previous));
+                    $query = $request->server('QUERY_STRING', '');
+                    return redirect('/'.$current.$suffix.($query === '' ? '' : '?'.$query), 308);
+                })->where('rest', '.*')->middleware(RecorderCors::class);
+            });
+        }
+    }
+
+    protected function registerIngestRoutes(): void
+    {
+        // CORS outermost (a 429 or 503 keeps its headers), then the per-person limit, then the cap for the whole
+        // app (ingest.global_requests_per_minute).
+        Route::middleware([HandleReplayCors::class.':ingest', ...(array) config('session-replay.ingest.middleware', []), ThrottleIngest::class.':session-replay', CapIngest::class, ...(config('session-replay.viewer.manage') ? [ProtectErasedRecordings::class] : [])])->group(function (): void {
+            Route::post('ingest', [IngestController::class, 'store'])->name('ingest');
+            Route::post('ingest/asset', [IngestController::class, 'asset'])->name('ingest.asset');
+            Route::post('ingest/snapshot', [IngestController::class, 'snapshot'])->name('ingest.snapshot');
+        });
+
+        if ($this->app->make(AllowedOrigins::class)->any()) {
+            foreach (['ingest', 'ingest/asset', 'ingest/snapshot'] as $uri) {
+                Route::options($uri, fn () => response()->noContent())->middleware(HandleReplayCors::class.':ingest');
+            }
+        }
     }
 
     /**
@@ -296,11 +318,6 @@ class SessionReplayServiceProvider extends PackageServiceProvider
         }
 
         $origins->warnAboutLaravelCors(trim((string) config('session-replay.path', 'session-replay'), '/'));
-
-        // HandleReplayCors answers a preflight itself; an OPTIONS request without one gets an empty answer.
-        foreach (['ingest', 'ingest/asset', 'ingest/snapshot'] as $uri) {
-            Route::options($uri, fn () => response()->noContent())->middleware(HandleReplayCors::class.':ingest');
-        }
 
         if ($tokenEndpoint) {
             Route::options('token', fn () => response()->noContent())->middleware(HandleReplayCors::class.':token');
