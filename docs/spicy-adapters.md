@@ -1,6 +1,6 @@
 # Standalone frontend integration (Spicy fork)
 
-This fork builds on [Packstub Session Replay 1.2.0](https://github.com/packstub/session-replay/releases/tag/v1.2.0)
+This fork includes [Packstub Session Replay 1.3.1](https://github.com/packstub/session-replay/releases/tag/v1.3.1)
 and the scope described in [upstream issue 54](https://github.com/packstub/session-replay/issues/54).
 The event, chunk, asset and signed-token formats stay compatible with upstream.
 
@@ -45,7 +45,7 @@ if the user and tenant that requested it are still current.
 Staff-operated installations can use `mode=session` and `consent=always` without rendering
 customer replay controls. The application's authenticated configuration endpoint remains
 authoritative; poll it and call `reset()` when capture is disabled or its policy cannot be
-retrieved. Ingest also rejects uploads when the server flag is off. Spicy uses the stricter
+retrieved. Ingest also rejects uploads when the server flag is off. Anonymous Spicy recordings use the stricter
 [`privacy.layout_only` profile](privacy.md#reduced-layout-capture-spicy-fork), removes stored
 person identity and raw user agents, and disables free-form capture channels.
 

@@ -287,3 +287,5 @@ Event::listen(function (ReplayReported $event): void {
         ->notify(new ProblemReported($event->marker->label, $event->session->url()));
 });
 ```
+
+In the Spicy player, selecting a colored tick on the playback bar seeks to that moment and opens the same details as the sidebar entry. Each tick has a timestamp and can be activated with the keyboard.

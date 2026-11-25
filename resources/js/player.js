@@ -123,18 +123,9 @@ async function load(manifest, progress) {
     const restored = restoreAssets(events, texts);
     if (!restored.length || !manifest.markers.length) return restored;
 
-    // The index also contains server errors and markers from layouts that omit custom rrweb events.
+    // Indexed markers have their own interactive ticks, including events that originate on the server.
     const tags = new Set(manifest.markers.map((marker) => `sr:${marker.type}`));
-    const playback = restored.filter((event) => event.type !== 5 || !tags.has(event.data?.tag));
-    const first = restored[0].timestamp;
-    const last = restored[restored.length - 1].timestamp;
-    for (const marker of manifest.markers) {
-        playback.push({
-            type: 5, timestamp: Math.max(first, Math.min(last, marker.at)),
-            data: { tag: marker.label || marker.type, payload: { ...payloadOf(marker), label: marker.label } },
-        });
-    }
-    return sortEvents(playback);
+    return restored.filter((event) => event.type !== 5 || !tags.has(event.data?.tag));
 }
 
 /** A marker's payload, whatever shape the manifest gave it. */
@@ -182,6 +173,24 @@ function gapBands(player, stage, manifest, startedAt, text) {
     }
 }
 
+function timelineMarkers(bar, markers, startedAt, duration, select, text) {
+    if (!bar || duration <= 0) return;
+    for (const marker of markers) {
+        const offset = Math.max(0, marker.at - startedAt);
+        const tick = element('button', 'sr-timeline-marker');
+        tick.type = 'button';
+        tick.title = `${clock(offset)} · ${text.types[marker.type] || marker.type} · ${markerLabel(marker, text)}`;
+        tick.setAttribute('aria-label', tick.title);
+        tick.style.left = `${Math.min(100, 100 * offset / duration)}%`;
+        tick.style.setProperty('--sr-tick-color', COLORS[marker.type] || COLORS.custom);
+        tick.addEventListener('click', (event) => {
+            event.stopPropagation();
+            select(marker);
+        });
+        bar.append(tick);
+    }
+}
+
 function markerList(manifest, startedAt, seek, text) {
     const panel = element('aside', 'sr-markers');
     const filters = element('div', 'sr-markers__filters');
@@ -190,9 +199,19 @@ function markerList(manifest, startedAt, seek, text) {
     const types = [...new Set(manifest.markers.map((marker) => marker.type))];
     const details = markerDetails(text);
     let selected = null;
+    const rows = new Map();
+    const select = (marker) => {
+        const offset = Math.max(0, marker.at - startedAt);
+        seek(Math.max(0, offset - 1000));
+        rows.get(selected)?.setAttribute('aria-current', 'false');
+        selected = marker;
+        rows.get(marker)?.setAttribute('aria-current', 'true');
+        details.show(marker, offset);
+    };
 
     const render = () => {
         list.replaceChildren();
+        rows.clear();
 
         const visible = manifest.markers.filter((marker) => !hidden.has(marker.type));
 
@@ -215,13 +234,8 @@ function markerList(manifest, startedAt, seek, text) {
             button.title = `${text.types[marker.type] || marker.type}: ${label}`;
             button.setAttribute('aria-current', String(marker === selected));
             if (marker.type === 'navigation' && payloadOf(marker).skipped) button.classList.add('sr-marker--gap');
-            // A second of lead-in, so the moment itself is seen happening; the details under the list are this marker's.
-            button.addEventListener('click', () => {
-                seek(Math.max(0, offset - 1000));
-                selected = marker;
-                details.show(marker, offset);
-                for (const other of list.querySelectorAll('.sr-marker')) other.setAttribute('aria-current', String(other === button));
-            });
+            rows.set(marker, button);
+            button.addEventListener('click', () => select(marker));
 
             const item = element('li');
 
@@ -247,7 +261,7 @@ function markerList(manifest, startedAt, seek, text) {
     render();
     panel.append(filters, list, details.panel);
 
-    return panel;
+    return { panel, select };
 }
 
 // The players on the page, each with what stops it: one left listening keeps its recording in memory after
@@ -583,7 +597,7 @@ async function mount(root, options = {}) {
             skipInactive: true,
             showController: true,
             speedOption: [1, 2, 4, 8],
-            tags: Object.fromEntries(manifest.markers.map((marker) => [marker.label || marker.type, COLORS[marker.type] || COLORS.custom])),
+            tags: Object.fromEntries(Object.entries(COLORS).map(([type, color]) => [`sr:${type}`, color])),
         },
     });
 
@@ -613,9 +627,11 @@ async function mount(root, options = {}) {
     // Under the controller, in the replay's column.
     if (root.dataset.copyLink !== 'false') stage.append(copyLink(player, text));
 
-    if (root.dataset.markers !== 'false') {
-        root.append(markerList(manifest, startedAt, (offset) => player.goto(offset, true), text));
-    }
+    const seek = (offset) => player.goto(offset, true);
+    const sidebar = root.dataset.markers === 'false' ? null : markerList(manifest, startedAt, seek, text);
+    if (sidebar) root.append(sidebar.panel);
+    timelineMarkers(stage.querySelector('.rr-progress'), manifest.markers, startedAt, player.getMetaData().totalTime,
+        sidebar?.select || ((marker) => seek(Math.max(0, marker.at - startedAt - 1000))), text);
 
     let resizing = null;
 

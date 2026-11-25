@@ -1476,9 +1476,10 @@ function watchRageClicks() {
 function watchVitals() {
     const report = (metric) => mark('vital', `${metric.name} ${metric.name === 'CLS' ? metric.value.toFixed(3) : Math.round(metric.value) + ' ms'}`, { name: metric.name, value: metric.value, rating: metric.rating });
 
-    onLCP(report);
-    onINP(report);
-    onCLS(report);
+    const options = { reportAllChanges: !!config.capture.layoutDiagnostics };
+    onLCP(report, options);
+    onINP(report, options);
+    onCLS(report, options);
 }
 
 function recordOptions() {

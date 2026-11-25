@@ -4,7 +4,7 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-25
 
-- Managed pilots can index errors, failed requests, vitals, rage clicks and problem reports while retaining sanitized layouts. Indexed events also appear on the playback bar.
+- Managed pilots can index errors, failed requests, vitals, rage clicks and problem reports while retaining sanitized layouts. Select an indexed event on the playback bar to seek and open its details.
 - Fix fullscreen sizing and playback of historical snapshots with anonymized custom elements.
 - Staff can switch capture privacy and permanently erase selected recordings on installations that enable management. Apply the management migration before enabling it.
 
