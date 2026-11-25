@@ -4,7 +4,7 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-25
 
-- Layout recordings retain individual CSS translations and standard list markers. Hosts can restore public branding and known layout rules in the playback document.
+- Layout recordings retain individual CSS translations and standard list markers. Timestamp links use the viewport at the selected moment. Hosts can restore public branding and known layout rules in the playback document.
 
 - Applications can embed the recording list and player in their own panel layout with scoped styling and the panel’s middleware.
 

@@ -686,7 +686,12 @@ async function mount(root, options = {}) {
     const offset = startOffset(location.search, startedAt);
     const autoPlay = options.autoPlay ?? options.autoplay ?? root.dataset.autoplay === 'true';
 
-    if (offset > 0 || autoPlay) player.goto(offset, autoPlay);
+    if (offset > 0 || autoPlay) {
+        // rrweb queues the first recorded viewport during construction. Seek after that resize.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (state.stopped) return null;
+        player.goto(offset, autoPlay);
+    }
 
     root.dispatchEvent(new CustomEvent('session-replay:ready', { detail: { player, manifest }, bubbles: true }));
 
