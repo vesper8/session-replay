@@ -227,8 +227,11 @@ class SessionReplayServiceProvider extends PackageServiceProvider
 
         $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 
+        $previousPaths = $this->app->make(SessionReplayManager::class)->routePrefixes();
+        $current = array_shift($previousPaths);
+
         Route::group(array_filter([
-            'prefix' => trim((string) config('session-replay.path', 'session-replay'), '/'),
+            'prefix' => $current,
             'domain' => config('session-replay.domain'),
             'as' => 'session-replay.',
         ]), function () use ($uuid): void {
@@ -267,10 +270,14 @@ class SessionReplayServiceProvider extends PackageServiceProvider
             }
         });
 
-        $previous = trim((string) config('session-replay.previous_path'), '/');
-        $current = trim((string) config('session-replay.path', 'session-replay'), '/');
-        if ($previous !== '' && $previous !== $current) {
-            Route::group(array_filter(['prefix' => $previous, 'domain' => config('session-replay.domain'), 'as' => 'session-replay.previous.']), function () use ($previous, $current): void {
+        // Match a nested former prefix before a parent's catch-all redirect.
+        uasort($previousPaths, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+        foreach ($previousPaths as $index => $previous) {
+            Route::group(array_filter([
+                'prefix' => $previous,
+                'domain' => config('session-replay.domain'),
+                'as' => $index === 0 ? 'session-replay.previous.' : "session-replay.previous.{$index}.",
+            ]), function () use ($previous, $current): void {
                 $this->registerIngestRoutes();
                 Route::get('{rest?}', static function (Request $request) use ($previous, $current) {
                     $suffix = substr($request->getPathInfo(), strlen('/'.$previous));

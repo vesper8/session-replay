@@ -270,12 +270,29 @@ class SessionReplayManager
         return $this->requestMatches($request ?? request(), config('session-replay.snapshots.share_paths', []), config('session-replay.snapshots.share_routes', []));
     }
 
+    /** @internal The canonical route prefix followed by the distinct former prefixes. */
+    public function routePrefixes(): array
+    {
+        $prefixes = [trim((string) config('session-replay.path', 'session-replay'), '/')];
+        foreach ((array) config('session-replay.previous_path') as $path) {
+            $path = trim($path, '/');
+            if ($path !== '' && ! in_array($path, $prefixes, true)) {
+                $prefixes[] = $path;
+            }
+        }
+
+        return $prefixes;
+    }
+
     public function isReplayPath(Request $request): bool
     {
-        $current = trim((string) config('session-replay.path', 'session-replay'), '/');
-        $previous = trim((string) config('session-replay.previous_path'), '/');
+        foreach ($this->routePrefixes() as $prefix) {
+            if ($request->is($prefix, $prefix.'/*')) {
+                return true;
+            }
+        }
 
-        return $request->is($current, $current.'/*') || ($previous !== '' && $request->is($previous, $previous.'/*'));
+        return false;
     }
 
     /**
