@@ -108,6 +108,17 @@ async function load(manifest, progress) {
 
     restoreSnapshots(events, snapshots);
 
+    // Older layout recordings renamed custom elements to div but kept rrweb's registration flag.
+    for (const event of events) {
+        const pending = event.type === 2 ? [event.data.node] : (event.data?.adds || []).map((add) => add.node);
+        while (pending.length) {
+            const node = pending.pop();
+            if (!node) continue;
+            if (node.isCustom && !node.tagName?.includes('-')) delete node.isCustom;
+            for (const child of node.childNodes || []) pending.push(child);
+        }
+    }
+
     const texts = new Map();
 
     await inBatches(referencedAssets(events), 4, async (hash) => {
@@ -546,7 +557,11 @@ async function mount(root, options = {}) {
     const stage = element('div', 'sr-player__stage');
     const startedAt = events[0].timestamp;
     const size = () => {
-        const width = Math.max(320, stage.clientWidth);
+        const fullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fullscreen && stage.contains(fullscreen)) {
+            return { width: fullscreen.clientWidth, height: Math.max(1, fullscreen.clientHeight - 80) };
+        }
+        const width = Math.max(1, stage.clientWidth);
 
         // 16:10 unless the window is too short; the controller takes 80px below the frame.
         return { width, height: Math.max(240, Math.min(Math.round(width / 1.6), window.innerHeight - 220)) };
@@ -559,6 +574,7 @@ async function mount(root, options = {}) {
         props: {
             events,
             ...size(),
+            maxScale: 0,
             autoPlay: false,
             skipInactive: true,
             showController: true,
@@ -607,9 +623,13 @@ async function mount(root, options = {}) {
         }, 150);
     };
 
+    document.addEventListener('fullscreenchange', resize);
+    document.addEventListener('webkitfullscreenchange', resize);
     window.addEventListener('resize', resize);
     state.stops.push(() => {
         clearTimeout(resizing);
+        document.removeEventListener('fullscreenchange', resize);
+        document.removeEventListener('webkitfullscreenchange', resize);
         window.removeEventListener('resize', resize);
     });
 

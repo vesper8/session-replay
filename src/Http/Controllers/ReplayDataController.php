@@ -103,7 +103,7 @@ class ReplayDataController
         }, 200, [
             'Content-Type' => $type,
             'Content-Encoding' => 'gzip',
-            'Cache-Control' => $cache,
+            'Cache-Control' => config('session-replay.viewer.manage') ? 'private, no-store' : $cache,
             'Vary' => 'Accept-Encoding',
             'X-Content-Type-Options' => 'nosniff',
         ]);

@@ -88,3 +88,19 @@ Before enabling, run `session-replay:prepare-storage --expect-path=<absolute app
 configured and actual write database, refuses non-local/non-MySQL targets, checks the connection
 before every query and applies only the package's additive migrations. It never provisions
 users, tenants or another application's database. Keep `run_migrations=false` in each adapter.
+
+## Staff management
+
+Enable `viewer.manage` after applying the package migrations and registering the
+`manageSessionReplay` gate on the viewer guard. The manager controls capture privacy for
+this installation. Before the first saved setting, `privacy.anonymous` supplies the default.
+In the layout profile, turning anonymization off records the authenticated subject and
+ordinary visible text. Input values, explicitly private regions and raw resource addresses
+remain protected. Turning it on masks text and removes attribution. Open adapters receive
+changes at configuration refresh. An installation with tenant-local subjects can use
+`viewer.recorded_user_label` to store a display attribute with identified recordings.
+
+Delete a single replay from its player or select rows on a list page and confirm permanent
+deletion. Chunk files and dependent rows are removed. Assets exclusively referenced by the
+selection are removed and shared assets survive. Only a digest of the erased identifier
+remains to refuse late uploads for that recording.

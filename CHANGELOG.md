@@ -4,6 +4,9 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-25
 
+- Fix fullscreen sizing and playback of historical snapshots with anonymized custom elements.
+- Staff can switch capture privacy and permanently erase selected recordings on installations that enable management. Apply the management migration before enabling it.
+
 - Page-based adapters can continue a recording across document loads in the same tab. Livewire page markers also work when Livewire error capture is off.
 
 ## Spicy fork adapters — 2026-11-24

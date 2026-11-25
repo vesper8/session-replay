@@ -23,6 +23,8 @@ use Packstub\SessionReplay\Http\Controllers\IngestController;
 use Packstub\SessionReplay\Http\Controllers\ReplayDataController;
 use Packstub\SessionReplay\Http\Controllers\ScriptController;
 use Packstub\SessionReplay\Http\Controllers\ViewerController;
+use Packstub\SessionReplay\Http\Controllers\RecordingManagementController;
+use Packstub\SessionReplay\Http\Middleware\ProtectErasedRecordings;
 use Packstub\SessionReplay\Http\Middleware\AddReplayContext;
 use Packstub\SessionReplay\Http\Middleware\AuthorizeViewer;
 use Packstub\SessionReplay\Http\Middleware\CapIngest;
@@ -231,7 +233,7 @@ class SessionReplayServiceProvider extends PackageServiceProvider
                 ->where('any', '.*')->middleware(RecorderCors::class);
 
             // The per-person limit first, then the cap for the whole app (ingest.global_requests_per_minute).
-            Route::middleware([RecorderCors::class, ...(array) config('session-replay.ingest.middleware', []), ThrottleIngest::class.':session-replay', CapIngest::class])->group(function (): void {
+            Route::middleware([RecorderCors::class, ...(array) config('session-replay.ingest.middleware', []), ThrottleIngest::class.':session-replay', CapIngest::class, ...(config('session-replay.viewer.manage') ? [ProtectErasedRecordings::class] : [])])->group(function (): void {
                 Route::post('ingest', [IngestController::class, 'store'])->name('ingest');
                 Route::post('ingest/asset', [IngestController::class, 'asset'])->name('ingest.asset');
                 Route::post('ingest/snapshot', [IngestController::class, 'snapshot'])->name('ingest.snapshot');
@@ -254,6 +256,10 @@ class SessionReplayServiceProvider extends PackageServiceProvider
                 Route::get('{session}/snapshots/{hash}', [ReplayDataController::class, 'snapshot'])->where('session', $uuid)->where('hash', '[a-f0-9]{64}|__hash__')->missing($missing)->name('snapshot');
 
                 if (config('session-replay.viewer.enabled', true)) {
+                    if (config('session-replay.viewer.manage')) {
+                        Route::put('privacy', [RecordingManagementController::class, 'privacy'])->name('privacy');
+                        Route::delete('recordings', [RecordingManagementController::class, 'destroy'])->name('destroy');
+                    }
                     Route::get('/', [ViewerController::class, 'index'])->name('index');
                     Route::get('{session}', [ViewerController::class, 'show'])->where('session', $uuid)->missing($missing)->name('show');
                 }

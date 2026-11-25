@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'erase' => [
+        'one' => 'Șterge înregistrarea',
+        'selected' => 'Șterge selecția',
+        'heading' => 'Ștergi definitiv aceste înregistrări?',
+        'warning' => 'Înregistrările selectate și fișierele lor vor fi șterse definitiv.',
+        'cancel' => 'Anulează',
+        'confirm' => 'Șterge definitiv',
+        'done' => 'Înregistrări șterse: :count.',
+        'privacy' => 'Anonimizează înregistrările noi',
+        'save' => 'Salvează',
+        'all' => 'Selectează toate înregistrările de pe pagină',
+        'select' => 'Selectează înregistrarea',
+    ],
 
     'title' => 'Session Replay',
     'guest' => 'Vizitator',

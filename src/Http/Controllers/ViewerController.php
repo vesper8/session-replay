@@ -28,7 +28,7 @@ class ViewerController
         $live = $request->boolean('live');
 
         $sessions = SessionReplay::visibleTo(ReplaySession::query())
-            ->with('user')
+            ->when(! config('session-replay.viewer.recorded_user_label'), fn ($query) => $query->with('user'))
             ->withExists(['markers as reported' => fn ($query) => $query->where('type', ReplayMarker::REPORT)])
             ->when($this->text($request->query('user')), fn ($query, string $user) => $query->where('user_id', $user))
             ->when($request->boolean('errors'), fn ($query) => $query->withErrors())
@@ -56,7 +56,7 @@ class ViewerController
         $previous = url()->previous();
 
         return view('session-replay::viewer.show', [
-            'session' => $session->load(['user', 'impersonator']),
+            'session' => $session->load(config('session-replay.viewer.recorded_user_label') ? ['impersonator'] : ['user', 'impersonator']),
             'userLabel' => $this->userLabel($session),
             // With impersonator_type the impersonator is a model and gets a label like the person; a bare key is shown as #key.
             'impersonatorLabel' => $session->impersonator_id === null ? null : $this->label($session->impersonator, $session->impersonator_id),
@@ -98,6 +98,10 @@ class ViewerController
     {
         if ($session->user_id === null) {
             return __('session-replay::viewer.guest');
+        }
+
+        if (config('session-replay.viewer.recorded_user_label')) {
+            return $session->properties['viewerLabel'] ?? '#'.$session->user_id;
         }
 
         return $this->label($session->user, $session->user_id);

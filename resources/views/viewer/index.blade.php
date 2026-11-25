@@ -39,6 +39,24 @@
         @endif
     </form>
 
+    @php($manage = \Packstub\SessionReplay\Support\RecordingManagement::allowed())
+    @if ($manage)
+        @if (session('replays-erased'))
+            <p role="status">{{ __('session-replay::viewer.erase.done', ['count' => session('replays-erased')]) }}</p>
+        @endif
+        <div class="filters card">
+            <form method="post" action="{{ route('session-replay.privacy') }}">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="anonymous" value="0">
+                <label class="check"><input type="checkbox" name="anonymous" value="1" @checked(\Packstub\SessionReplay\Support\RecordingManagement::anonymous())> {{ __('session-replay::viewer.erase.privacy') }}</label>
+                <button type="submit">{{ __('session-replay::viewer.erase.save') }}</button>
+            </form>
+            @if($sessions->isNotEmpty())
+                @include('session-replay::viewer.partials.erase')
+            @endif
+        </div>
+    @endif
     <div class="card table-scroll">
         @if ($sessions->isEmpty())
             <p class="empty">{{ $live ? __('session-replay::viewer.live_empty') : __('session-replay::viewer.empty') }}</p>
@@ -46,6 +64,7 @@
             <table>
                 <thead>
                     <tr>
+                        @if ($manage)<th><input type="checkbox" id="select-all-replays" aria-label="{{ __('session-replay::viewer.erase.all') }}"></th>@endif
                         <th>{{ __('session-replay::viewer.person') }}</th>
                         <th>{{ __('session-replay::viewer.started') }}</th>
                         <th>{{ __('session-replay::viewer.length') }}</th>
@@ -59,6 +78,7 @@
                 <tbody>
                     @foreach ($sessions as $session)
                         <tr>
+                            @if ($manage)<td><input type="checkbox" form="erase-replays" name="ids[]" value="{{ $session->id }}" aria-label="{{ __('session-replay::viewer.erase.select') }} {{ $userLabel($session) }} {{ $session->started_at }}"></td>@endif
                             <td>
                                 {{ $userLabel($session) }}
                                 @if ($session->impersonator_id) <span class="badge warn" title="{{ __('session-replay::viewer.impersonated_by_id', ['id' => $session->impersonator_id]) }}">{{ __('session-replay::viewer.impersonated') }}</span> @endif

@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'erase' => [
+        'one' => 'Delete replay',
+        'selected' => 'Delete selected',
+        'heading' => 'Permanently delete these replays?',
+        'warning' => 'Selected recordings and their files will be erased. This cannot be undone.',
+        'cancel' => 'Cancel',
+        'confirm' => 'Delete permanently',
+        'done' => 'Deleted :count recording(s).',
+        'privacy' => 'Anonymize new recordings',
+        'save' => 'Save',
+        'all' => 'Select all recordings on this page',
+        'select' => 'Select recording',
+    ],
 
     'title' => 'Session Replay',
     'guest' => 'Guest',

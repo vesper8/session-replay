@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'erase' => [
+        'one' => 'Eliminar grabación',
+        'selected' => 'Eliminar selección',
+        'heading' => '¿Eliminar definitivamente estas grabaciones?',
+        'warning' => 'Se eliminarán las grabaciones seleccionadas y sus archivos. Esta acción es irreversible.',
+        'cancel' => 'Cancelar',
+        'confirm' => 'Eliminar definitivamente',
+        'done' => 'Grabaciones eliminadas: :count.',
+        'privacy' => 'Anonimizar nuevas grabaciones',
+        'save' => 'Guardar',
+        'all' => 'Seleccionar todas las grabaciones de esta página',
+        'select' => 'Seleccionar grabación',
+    ],
 
     'title' => 'Session Replay',
     'guest' => 'Invitado',

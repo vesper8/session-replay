@@ -13,9 +13,14 @@ export function privatePageUrl(value, paths = {}) {
 }
 
 // Layout capture keeps opaque selectors and presentation, without page content or resource addresses.
-export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePaths = {} } = {}, nodeOf = () => null) {
+export function layoutPrivacy({ layoutFidelity = false, readableText = false, maskTextSelector, publicText = [], pagePaths = {} } = {}, nodeOf = () => null) {
     const publicWords = new Set(publicText);
-    const maskedText = (value) => publicWords.has(value.trim()) ? value : value.replace(/\S/g, '*');
+    const privateText = ['script', 'style', 'noscript', 'template', 'input', 'textarea', 'select', '[contenteditable]', '[data-replay-mask]', maskTextSelector].filter(Boolean).join(',');
+    const maskedText = (value, id) => {
+        const parent = nodeOf(id)?.parentElement;
+        if (readableText && parent && !parent.closest(privateText)) return value;
+        return publicWords.has(value.trim()) ? value : value.replace(/\S/g, '*');
+    };
     const publicAttributes = new Map([['data-state', ['open', 'closed', 'active', 'inactive', 'checked', 'unchecked', 'on', 'off']], ['aria-expanded', ['true', 'false']], ['aria-selected', ['true', 'false']], ['aria-checked', ['true', 'false', 'mixed']], ['data-theme', ['light', 'dark']]]);
     const names = new Map();
     const opaque = (value) => {
@@ -150,9 +155,10 @@ export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePat
     const tags = new Set(('html head body title meta link style div span p a button input textarea select option optgroup label form fieldset legend main section article aside header footer nav h1 h2 h3 h4 h5 h6 ul ol li dl dt dd table thead tbody tfoot tr td th col colgroup caption pre code br hr strong em b i u s small sub sup details summary dialog figure figcaption picture source img video audio canvas iframe object embed svg g path circle ellipse rect line polyline polygon defs symbol use marker mask clipPath pattern linearGradient radialGradient stop text tspan textPath foreignObject').split(' '));
     function node(root, parentTag = '') {
         if (root.type === 1) { root.name = 'html'; root.publicId = ''; root.systemId = ''; }
-        if (root.type === 3) root.textContent = parentTag === 'style' ? stylesheet(root.textContent) : maskedText(root.textContent);
+        if (root.type === 3) root.textContent = parentTag === 'style' ? stylesheet(root.textContent) : maskedText(root.textContent, root.id);
         if (root.type === 2) {
             if (!tags.has(root.tagName)) root.tagName = 'div';
+            delete root.isCustom;
             attributes(root.attributes);
             if (layoutFidelity) root.attributes.style = presentation(root.id);
             if (root.tagName === 'iframe') root.childNodes = [];
@@ -174,7 +180,7 @@ export function layoutPrivacy({ layoutFidelity = false, publicText = [], pagePat
                     if (layoutFidelity) change.attributes.style = presentation(change.id);
                 }
                 // A text mutation can target a stylesheet; its contents cannot be inferred from an rrweb id here.
-                for (const change of data.texts || []) change.value = layoutFidelity ? maskedText(change.value) : '';
+                for (const change of data.texts || []) change.value = layoutFidelity ? maskedText(change.value, change.id) : '';
             }
             if (data.source === 5 && typeof data.text === 'string') data.text = '***';
         }

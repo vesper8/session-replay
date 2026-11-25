@@ -49,7 +49,10 @@ class ContextToken
             ? $this->pseudonym
             : substr(hash_hmac('sha256', 'session-replay-person|'.$this->userType.'|'.$this->userId, self::key()), 0, 32);
 
-        return new self(null, null, $this->tenantType, $this->tenantId, null, $this->properties, $this->issuedAt, $this->nonce, $pseudonym, null);
+        $properties = $this->properties;
+        unset($properties['viewerLabel']);
+
+        return new self(null, null, $this->tenantType, $this->tenantId, null, $properties, $this->issuedAt, $this->nonce, $pseudonym, null);
     }
 
     /** @param array<string, mixed> $properties */

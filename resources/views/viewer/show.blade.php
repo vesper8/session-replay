@@ -12,6 +12,10 @@
         <p class="card flash flash--error" role="alert">{{ session('session-replay.assist-error') }}</p>
     @endif
 
+    @if (\Packstub\SessionReplay\Support\RecordingManagement::allowed())
+        @include('session-replay::viewer.partials.erase', ['recording' => $session])
+    @endif
+
     <dl class="facts card">
         <div><dt>{{ __('session-replay::viewer.length') }}</dt><dd>{{ $session->durationForHumans() }} @if ($session->isLive()) <span class="badge ok">{{ __('session-replay::viewer.live') }}</span> @include('session-replay::viewer.partials.last-seen', ['session' => $session]) @endif</dd></div>
         <div><dt>{{ __('session-replay::viewer.pages') }}</dt><dd>{{ $session->page_count }}</dd></div>

@@ -792,6 +792,7 @@ async function shareSnapshots(batch) {
                 const data = new FormData();
 
                 data.append('token', batch.token);
+                data.append('session', batch.session.id);
                 data.append('hash', hash);
                 data.append('content', await gzip(text), 'content');
 
@@ -1449,7 +1450,7 @@ function recordOptions() {
     const publicWords = new Set(config.privacy.publicText || []);
     const publicMask = (text, element) => {
         const privateElement = config.privacy.maskTextSelector && element?.closest?.(config.privacy.maskTextSelector);
-        return !privateElement && publicWords.has(text.trim()) ? text : text.replace(/\S/g, '*');
+        return !privateElement && (config.privacy.readableText || publicWords.has(text.trim())) ? text : text.replace(/\S/g, '*');
     };
     return {
         emit,
@@ -1459,7 +1460,7 @@ function recordOptions() {
         maskInputOptions: inputMaskOptions(config.privacy.layoutOnly || config.privacy.maskAllInputs),
         maskTextSelector: config.privacy.layoutOnly || config.privacy.maskAllText ? '*' : simplifyMaskSelector(config.privacy.maskTextSelector) || undefined,
         // mask_all_text with an unmask selector: rrweb hands every text it masks to this, with its element.
-        maskTextFn: publicWords.size ? publicMask : (!config.privacy.layoutOnly && config.privacy.maskAllText && config.privacy.unmaskTextSelector ? textMasker(config.privacy.unmaskTextSelector, config.privacy.maskTextSelector) : undefined),
+        maskTextFn: publicWords.size || config.privacy.readableText ? publicMask : (!config.privacy.layoutOnly && config.privacy.maskAllText && config.privacy.unmaskTextSelector ? textMasker(config.privacy.unmaskTextSelector, config.privacy.maskTextSelector) : undefined),
         blockSelector: config.privacy.blockSelector || undefined,
         ignoreSelector: config.privacy.ignoreSelector || undefined,
         slimDOMOptions: 'all',

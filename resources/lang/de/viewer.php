@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'erase' => [
+        'one' => 'Aufzeichnung löschen',
+        'selected' => 'Auswahl löschen',
+        'heading' => 'Aufzeichnungen endgültig löschen?',
+        'warning' => 'Die ausgewählten Aufzeichnungen und Dateien werden unwiderruflich gelöscht.',
+        'cancel' => 'Abbrechen',
+        'confirm' => 'Endgültig löschen',
+        'done' => ':count Aufzeichnung(en) gelöscht.',
+        'privacy' => 'Neue Aufzeichnungen anonymisieren',
+        'save' => 'Speichern',
+        'all' => 'Alle Aufzeichnungen dieser Seite auswählen',
+        'select' => 'Aufzeichnung auswählen',
+    ],
 
     'title' => 'Session Replay',
     'guest' => 'Gast',

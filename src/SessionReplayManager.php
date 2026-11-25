@@ -334,6 +334,13 @@ class SessionReplayManager
             (array) ($options['properties'] ?? []),
         ));
 
+        $managed = config('session-replay.viewer.manage', false);
+        $anonymous = $managed ? Support\RecordingManagement::anonymous() : config('session-replay.privacy.anonymous', false);
+        $labelAttribute = config('session-replay.viewer.recorded_user_label');
+        if (! $anonymous && $labelAttribute && $user) {
+            $properties['viewerLabel'] = (string) $user->getAttribute($labelAttribute);
+        }
+
         $token = ContextToken::for(
             $user,
             $tenant instanceof Model ? $tenant : null,
@@ -341,7 +348,7 @@ class SessionReplayManager
             $properties,
         );
 
-        if (config('session-replay.privacy.anonymous', false)) {
+        if ($anonymous) {
             $token = $token->withoutPerson();
         }
 
@@ -361,6 +368,7 @@ class SessionReplayManager
             'consent' => $this->consent(),
             'respectGpc' => (bool) config('session-replay.respect_gpc', false),
             'privacy' => [
+                'readableText' => $managed && ! $anonymous,
                 'layoutOnly' => (bool) config('session-replay.privacy.layout_only', false),
                 'layoutFidelity' => (bool) config('session-replay.privacy.layout_fidelity', false),
                 'publicText' => array_values((array) config('session-replay.privacy.public_text', [])),
