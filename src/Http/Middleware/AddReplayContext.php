@@ -24,14 +24,15 @@ class AddReplayContext
     {
         // Nothing of an earlier request carries over (a long-running server keeps the instance).
         app(ServerErrors::class)->forRecording(null);
-        Context::forget(['session_replay', 'session_replay_url', 'session_replay_moment']);
 
         if (config('session-replay.enabled', true) && config('session-replay.context.enabled', true)) {
             // Read before cookie decryption runs: the recorder writes it in the clear, as "<id>.<write key>" (the id
             // alone from a recorder from before write keys).
-            $cookie = $request->header('X-Session-Replay')
-                ?? $request->cookies->get((string) config('session-replay.context.cookie', 'session_replay_id'));
+            $cookie = $request->cookies->get((string) config('session-replay.context.cookie', 'session_replay_id'));
             [$id, $key] = is_string($cookie) ? array_pad(explode('.', $cookie, 2), 2, null) : [null, null];
+
+            // The header identifies the requesting tab even when another tab has replaced its cookie.
+            [$id, $key] = self::fromHeader($request) ?? [$id, $key];
 
             if (is_string($id) && Str::isUuid($id)) {
                 Context::add('session_replay', $id);
@@ -55,6 +56,29 @@ class AddReplayContext
         }
 
         return $next($request);
+    }
+
+    /**
+     * The recording id and write key from the context.header header ("<uuid>" or "<uuid>.<key>", the key 1 to 128
+     * letters and digits), the id in lower case; null for a header that is off, missing or anything else. Strict: a
+     * page script chooses this value, and it ends up in every log line of the request.
+     *
+     * @return array{0: string, 1: ?string}|null
+     */
+    protected static function fromHeader(Request $request): ?array
+    {
+        $name = config('session-replay.context.header', 'X-Session-Replay');
+        $value = is_string($name) && $name !== '' ? $request->headers->get($name) : null;
+
+        if (! is_string($value) || strlen($value) > 165) {
+            return null;
+        }
+
+        if (! preg_match('/\A([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\.([A-Za-z0-9]{1,128}))?\z/i', $value, $match)) {
+            return null;
+        }
+
+        return [strtolower($match[1]), ($match[2] ?? '') !== '' ? $match[2] : null];
     }
 
     /**

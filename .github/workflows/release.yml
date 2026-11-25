@@ -40,8 +40,9 @@ jobs:
           fi
 
       # GitHub's list of merged pull requests under the summary (Dependabot is left
-      # out by .github/release.yml). The maintainer's own "first contribution" line
-      # is dropped, and the New Contributors heading with it when nobody is left.
+      # out by .github/release.yml, which can't touch New Contributors). The maintainer's
+      # and Dependabot's "first contribution" lines are dropped, and the New Contributors
+      # heading with them when nobody is left.
       - name: Append the merged pull requests
         env:
           GH_TOKEN: ${{ github.token }}
@@ -50,7 +51,7 @@ jobs:
           # Relative links (docs/x.md, UPGRADE.md) work in the repo, not on a release page.
           perl -pi -e 's{\]\((?![a-z][a-z0-9+.-]*:|#|/)([^)\s]+)\)}{](https://github.com/$ENV{GITHUB_REPOSITORY}/blob/$ENV{TAG}/$1)}g' release-notes.md
           gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" -q .body \
-            | perl -0pe 's/^\* \@icaliman made their first contribution[^\n]*\n//mg; s/^## New Contributors\n+(?=\*\*Full Changelog|\z)//mg' \
+            | perl -0pe 's/^\* \@(?:icaliman|dependabot\[bot\]) made their first contribution[^\n]*\n//mg; s/^## New Contributors\n+(?=\*\*Full Changelog|\z)//mg' \
             > generated.md
           if [ -s release-notes.md ]; then echo >> release-notes.md; fi
           cat generated.md >> release-notes.md
@@ -72,3 +73,69 @@ jobs:
             --title "$TAG" \
             --notes-file release-notes.md \
             --verify-tag $prerelease
+
+  # The recorder for a frontend on another origin (docs/standalone.md), from the same sources as resources/dist:
+  # @packstub/session-replay at the tag's version, staged: no token, npm trusted publishing (OIDC) for this repo and
+  # release.yml, set on the package at npmjs.com with stage only (neither npm publish nor npm dist-tag allowed), which
+  # also adds provenance; the package refuses tokens. The version goes live when a maintainer approves it with 2FA
+  # (npmjs.com, the package's Staged Packages tab, or `npm stage approve <stage-id>`). Only on a tag push; a manual
+  # run for an old tag leaves npm alone. A version already on npm (published by hand) is skipped, not failed.
+  npm:
+    name: Publish @packstub/session-replay to npm
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Staged publishing needs npm 11.15.0 or later (trusted publishing alone 11.5.1); Node 24 ships npm 11.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Check the npm version
+        run: |
+          npm --version
+          node -e 'const [a, b] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && b < 15)) { console.error("npm " + process.argv[1] + " cannot stage a publish; 11.15.0 or later is needed."); process.exit(1) }' "$(npm --version)"
+
+      - name: Skip a version already on npm
+        id: published
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if npm view "@packstub/session-replay@${TAG#v}" version >/dev/null 2>&1; then
+            echo "@packstub/session-replay@${TAG#v} is already on npm; nothing to publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build at the tag's version
+        if: steps.published.outputs.skip != 'true'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          npm ci --ignore-scripts
+          npm version "${TAG#v}" --no-git-tag-version --allow-same-version
+          npm run build
+          npm test
+          npm run test:types
+
+      # npm takes the README beside package.json, which is the Composer package's: the npm package has its own.
+      - name: Use the npm package's README
+        if: steps.published.outputs.skip != 'true'
+        run: cp npm/README.md README.md
+
+      - name: Stage for approval on npmjs.com
+        if: steps.published.outputs.skip != 'true'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # A tag with a suffix (v1.3.0-beta.1) goes out under "next", never as "latest".
+          dist_tag="latest"
+          if [[ "$TAG" == *-* ]]; then dist_tag="next"; fi
+          npm stage publish --provenance --access public --tag "$dist_tag" --ignore-scripts
+          echo "Staged @packstub/session-replay@${TAG#v} under \"$dist_tag\": approve it on npmjs.com (Staged Packages) with 2FA." >> "$GITHUB_STEP_SUMMARY"

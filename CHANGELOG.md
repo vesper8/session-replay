@@ -4,6 +4,7 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-25
 
+- Managed pilots can index errors, failed requests, vitals, rage clicks and problem reports while retaining sanitized layouts. Indexed events also appear on the playback bar.
 - Fix fullscreen sizing and playback of historical snapshots with anonymized custom elements.
 - Staff can switch capture privacy and permanently erase selected recordings on installations that enable management. Apply the management migration before enabling it.
 
@@ -26,6 +27,20 @@ All notable changes to `packstub/session-replay` are documented here.
 - API requests can carry replay context in `X-Session-Replay`, including the recording's write key.
 
 See [the standalone integration](docs/standalone.md). This is an initial fork implementation; runtime verification is pending.
+
+## 1.3.1 — 2026-11-24
+
+- The npm recorder (`@packstub/session-replay`) now renews its token before it expires, so the last moments of a tab that stayed open for days are no longer lost
+- The npm recorder stops recording when a token renewal finds the person signed out or someone else signed in, instead of recording on under the old name until the token expired
+
+## 1.3.0 — 2026-11-24
+
+**Record a frontend on its own origin.** A Vue or React app served apart from Laravel can now be recorded with the new npm package `@packstub/session-replay`, and watched like any other recording. See [Standalone frontend](docs/standalone.md).
+
+- `@packstub/session-replay` on npm: `start()`, `stop()`, `mark()`, `send()`, `consent()` and `header()`, the same recorder as `@sessionReplay`
+- A token route, `GET {path}/token`, behind your own sign-in, off by default (`SESSION_REPLAY_TOKEN_ENDPOINT=true`)
+- CORS on the upload routes and the token route for the origins in `ingest.origins` (`SESSION_REPLAY_ORIGINS`); uploads still trust nothing but the signed token
+- The `X-Session-Replay` header links your API's log lines to the replay, the way the cookie does for rendered pages
 
 ## 1.2.0 — 2026-11-20
 

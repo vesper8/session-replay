@@ -120,7 +120,21 @@ async function load(manifest, progress) {
         }
     });
 
-    return restoreAssets(events, texts);
+    const restored = restoreAssets(events, texts);
+    if (!restored.length || !manifest.markers.length) return restored;
+
+    // The index also contains server errors and markers from layouts that omit custom rrweb events.
+    const tags = new Set(manifest.markers.map((marker) => `sr:${marker.type}`));
+    const playback = restored.filter((event) => event.type !== 5 || !tags.has(event.data?.tag));
+    const first = restored[0].timestamp;
+    const last = restored[restored.length - 1].timestamp;
+    for (const marker of manifest.markers) {
+        playback.push({
+            type: 5, timestamp: Math.max(first, Math.min(last, marker.at)),
+            data: { tag: marker.label || marker.type, payload: { ...payloadOf(marker), label: marker.label } },
+        });
+    }
+    return sortEvents(playback);
 }
 
 /** A marker's payload, whatever shape the manifest gave it. */
@@ -569,7 +583,7 @@ async function mount(root, options = {}) {
             skipInactive: true,
             showController: true,
             speedOption: [1, 2, 4, 8],
-            tags: Object.fromEntries(Object.entries(COLORS).map(([type, color]) => [`sr:${type}`, color])),
+            tags: Object.fromEntries(manifest.markers.map((marker) => [marker.label || marker.type, COLORS[marker.type] || COLORS.custom])),
         },
     });
 

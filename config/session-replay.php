@@ -173,6 +173,8 @@ return [
         // Other requests (fetch, XMLHttpRequest: Inertia, axios) as "request" markers: same-origin ones answered
         // with this status or higher, or not at all. Never headers or bodies. false turns it off.
         'requests' => 500,
+        // Index diagnostics alongside sanitized layouts for managed, identified recordings.
+        'layout_diagnostics' => false,
         // Extra API origins whose failed requests belong to this application.
         'request_origins' => [],
         // Exceptions Laravel reports during a recorded request as "error" markers (source "server"): the class, status,
@@ -251,8 +253,6 @@ return [
     'domain' => null,
 
     'ingest' => [
-        // Exact frontend origins allowed to upload to another origin; no wildcard or credentials.
-        'origins' => [],
         // Extra middleware for the upload routes. None is needed, and "web" would ask for a CSRF token
         // the recorder does not send: identity comes from the token the page was rendered with.
         'middleware' => [],
@@ -281,6 +281,19 @@ return [
         // false: a token that names nobody (no person, no workspace, no impersonator) never expires, for guest
         // pages behind a long-lived cache. Such uploads are still throttled, size-limited and need guests on.
         'guest_tokens_expire' => true,
+        // Origins of a frontend served apart from this app (a Vue or React app on its own domain) that may upload and
+        // fetch a token: "https://app.example.com", scheme and host (and a port other than the default) only, no
+        // wildcards. [] keeps everything same-origin. See docs/standalone.md.
+        'origins' => array_values(array_filter(array_map('trim', explode(',', (string) env('SESSION_REPLAY_ORIGINS', ''))))),
+        // GET {path}/token: what @sessionReplay embeds in a page (the recorder's config and a fresh signed token), for
+        // the npm package @packstub/session-replay on such a frontend. Off by default.
+        'token_endpoint' => (bool) env('SESSION_REPLAY_TOKEN_ENDPOINT', false),
+        // The token route's middleware: whatever signs the frontend in (["web"] for a session cookie, ["api", "auth:sanctum"]
+        // for a bearer token). Who is recorded is then decided as for a page (guests, recordWhen() and the resolvers).
+        'token_middleware' => ['web'],
+        // Tokens per minute for all guests together (they cannot be told apart); a signed-in person counts against
+        // requests_per_minute. null turns it off.
+        'guest_tokens_per_minute' => 600,
     ],
 
     /*
@@ -419,6 +432,9 @@ return [
     'context' => [
         'enabled' => true,
         'cookie' => 'session_replay_id',
+        // The same "<id>.<write key>" as a request header, for a frontend on another origin whose cookie never reaches
+        // this app (the npm package's header()). The valid header wins when both are sent; null turns the header off.
+        'header' => 'X-Session-Replay',
     ],
 
 ];

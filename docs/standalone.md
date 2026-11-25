@@ -1,106 +1,176 @@
-# Standalone frontend integration (Spicy fork)
+# Standalone frontend
 
-This fork builds on [Packstub Session Replay 1.2.0](https://github.com/packstub/session-replay/releases/tag/v1.2.0)
-and the scope described in [upstream issue 54](https://github.com/packstub/session-replay/issues/54).
-The event, chunk, asset and signed-token formats stay compatible with upstream.
+`@sessionReplay` records pages that Laravel renders. If your frontend runs on its own origin, for example a Vue or React app on `app.example.com` that talks to your Laravel API on `api.example.com`, use the npm package `@packstub/session-replay` instead. It runs the same recorder. The difference is where the config comes from: the package fetches it from a token route on your app, behind your app's own sign-in, and then uploads to the usual ingest routes across origins. Recordings are stored and watched like every other recording.
 
-## Backend
+## On the Laravel side
 
-An application-owned authenticated endpoint calls `SessionReplay::recorderConfiguration()`
-after its authentication, tenant initialization and access checks. It returns a nullable
-configuration array: null means recording is disabled for this request. Return it with
-`Cache-Control: private, no-store`. Never cache one user's configuration for another.
+Turn on the token route and list the frontend's origin:
 
-The same `recordWhen`, `userUsing`, `tenantUsing`, `impersonatorUsing` and privacy settings
-apply as with the Blade directive. The endpoint must be outside the package's own route
-prefix, which the recorder excludes. The application handles CORS and authentication for
-this endpoint; it is deliberately not a public token issuer.
+```dotenv
+SESSION_REPLAY_TOKEN_ENDPOINT=true
+SESSION_REPLAY_ORIGINS=https://app.example.com
+```
 
-`scriptUrl` names the bundled recorder. Configure `ingest.origins` with exact frontend
-origins to allow cross-origin multipart POSTs to ingest, assets and snapshots. The package
-answers their OPTIONS requests and never enables credentialed CORS. Upload identity still
-comes from the signed token and the recording's write key; browser-supplied user or tenant
-ids are never trusted.
+`SESSION_REPLAY_ORIGINS` takes a comma-separated list. Write each entry as an exact origin: scheme and host, plus the port if it is not the default (`http://localhost:5173` for a Vite dev server). Wildcards, paths and `null` are ignored and logged as a warning. The app's own origin is always allowed.
 
-`capture.request_origins` adds exact API origins to failed fetch/XHR capture. Bodies and
-headers are not recorded. `X-Session-Replay` carries `<recording UUID>.<write key>` on the
-application's own API requests, and AddReplayContext accepts it ahead of the cookie. Include
-it only for the current tenant's trusted API origin, never third-party requests. The write
-key is required for server-error attribution; a UUID by itself is not an upload credential.
+That adds `GET {path}/token` (`session-replay.token`). It runs behind `ingest.token_middleware`, and the person it signs in is recorded under the same rules as on a rendered page: `guests`, `recordWhen()`, `userUsing()`, `tenantUsing()`, `impersonatorUsing()`, `propertiesUsing()` and `privacy.anonymous`. The answer is the config the directive would embed, with a fresh signed token:
 
-## Browser
+```json
+{ "record": true, "config": { "token": "…", "ingestUrl": "https://api.example.com/session-replay/ingest", "…": "…" }, "expires_at": "2026-12-01T10:00:00+00:00", "expires_in": 604800 }
+```
 
-Set `window.__sessionReplay = { ...configuration, deferStart: true }` before loading
-`configuration.scriptUrl` as a classic script. Loading installs `window.SessionReplay`
-without starting capture; the SPA then calls `SessionReplay.configure(configuration)` only
-if the user and tenant that requested it are still current.
+`expires_in` is the token's lifetime in seconds (`ingest.token_days`, seven days by default). Both are `null` for a guest's token when `ingest.guest_tokens_expire` is off.
 
-- `configure(configuration)` discards the old local buffer and session, adopts the new signed
-  context and starts a fresh recording. It never flushes an old rolling buffer on a switch.
-- `reset()` stops recording, drops the buffer and clears this tab's saved session. Call it
-  synchronously before changing tenant, signing out or entering an excluded route.
-- `contextHeader()` returns this active recording's UUID and write key, or null.
-- `send()` uploads the rolling buffer and continues recording, as upstream documents.
+If the person is not recorded, the route answers `{ "record": false }`. A request from an origin that is neither listed nor the app's own gets a 403 before your middleware runs, and so does one that a tag or a link on another page made (the browser says so in `Sec-Fetch-Site`). Answers are sent with `Cache-Control: no-store, private`.
 
-Staff-operated installations can use `mode=session` and `consent=always` without rendering
-customer replay controls. The application's authenticated configuration endpoint remains
-authoritative; poll it and call `reset()` when capture is disabled or its policy cannot be
-retrieved. Ingest also rejects uploads when the server flag is off. Spicy uses the stricter
-[`privacy.layout_only` profile](privacy.md#reduced-layout-capture-spicy-fork), removes stored
-person identity and raw user agents, and disables free-form capture channels.
+### Session cookie or bearer token
 
-Initialize the bundle once per document. Capture watcher settings are installed with the
-first configuration; reload the document after changing those settings. Context switches
-change identity and token while retaining the same installation's capture policy.
+The default, `'token_middleware' => ['web']`, reads the session cookie. This is the setup Sanctum uses for an SPA: the frontend and the API share a site (`app.example.com` and `api.example.com`) and the frontend sends credentials. Guests reach the route too and get `record: false` unless `guests` is on.
 
-This first slice uses the existing served bundle rather than publishing an npm recorder.
-Assist remains outside this standalone integration. See [Recording](recording.md),
-[Privacy](privacy.md), [Storage](storage.md) and [Configuration](configuration.md) for the
-unchanged upstream features.
+The session cookie only travels between origins of the same site. If the frontend lives on another site altogether (`app.example.com` and `api.example.net`), browsers leave a `SameSite=Lax` cookie out of the request, so sign in with a bearer token there.
 
-## Verification status
+With bearer tokens, use the guard instead:
 
-PHP and JavaScript syntax, route registration and asset builds are checked. No tests have
-been created or run: the enclosing Spicy repository explicitly requires a separate request
-for tests. Authenticated recording, cross-origin uploads, identity changes and playback
-still need runtime verification before enabling capture.
+```php
+// config/session-replay.php
+'ingest' => [
+    'token_middleware' => ['auth:sanctum'],
+],
+```
 
-## Shared SPA client and application adapters
+With `auth:sanctum`, a request without a valid token gets a 401, which the package treats as "not recorded", so guests are never recorded this way.
 
-The served ES module `/session-replay/scripts/client.js` exports `createReplayClient({
-configuration, origin, onState, refreshMs })`. `configuration(context, abortSignal)` is an
-application-owned authenticated request returning `{ enabled, configuration }`. Set a context
-with `{ key, scope, ...applicationCredentials }`; a changed key synchronously resets capture.
-`contextHeader(scope)` only returns a browser possession proof for the current scope.
-`stop()` cancels requests/timers and discards local events; `destroy()` also removes its listener.
-The client refreshes policy every minute, stops on failure/disable and restarts when allowed.
-A page-based host can opt into `resumeOnLoad: true` to continue the current browser tab’s recording on the first authorized configuration in a new document. The recorder checks its identity and idle timeout. Bind identity to the login session when a fresh login should split playback. For Livewire navigation, supply fresh signed settings synchronously on each eligible page so the native navigation observer can resume with a full snapshot.
+### Rate limits
 
-The host owns authentication, authorization, context selection, storage, privacy and viewer access.
-No Vue, Axios, Filament, Spicy user model or product tenancy dependency belongs in this client.
+A signed-in person can fetch tokens up to `ingest.requests_per_minute` times a minute. All guests together share `ingest.guest_tokens_per_minute` (600). The limits never key on the IP address.
 
-Each consumer pins this Git submodule to an explicit reviewed commit. Updating this fork
-alone never advances the application's pin. A native Filament adapter can use the same core
-with `SessionReplay::recorder()` in a panel render hook instead of the SPA client.
+## In the frontend
 
-Before enabling, run `session-replay:prepare-storage --expect-path=<absolute application path>
---expect-database=<local database>` from that application. It verifies the application path,
-configured and actual write database, refuses non-local/non-MySQL targets, checks the connection
-before every query and applies only the package's additive migrations. It never provisions
-users, tenants or another application's database. Keep `run_migrations=false` in each adapter.
+```bash
+npm install @packstub/session-replay
+```
 
-## Staff management
+```js
+import { start } from '@packstub/session-replay';
 
-Enable `viewer.manage` after applying the package migrations and registering the
-`manageSessionReplay` gate on the viewer guard. The manager controls capture privacy for
-this installation. Before the first saved setting, `privacy.anonymous` supplies the default.
-In the layout profile, turning anonymization off records the authenticated subject and
-ordinary visible text. Input values, explicitly private regions and raw resource addresses
-remain protected. Turning it on masks text and removes attribution. Open adapters receive
-changes at configuration refresh. An installation with tenant-local subjects can use
-`viewer.recorded_user_label` to store a display attribute with identified recordings.
+start({ endpoint: 'https://api.example.com/session-replay/token' });
+```
 
-Delete a single replay from its player or select rows on a list page and confirm permanent
-deletion. Chunk files and dependent rows are removed. Assets exclusively referenced by the
-selection are removed and shared assets survive. Only a digest of the erased identifier
-remains to refuse late uploads for that recording.
+`start()` resolves to `true` once the tab records. Call it again whenever the person signs in or out: a token for someone else ends the current recording and starts a new one, and `record: false` stops recording.
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `endpoint` | required | The token route's URL. |
+| `credentials` | `'include'` | Sent with the token request. Use `'omit'` with a bearer token. |
+| `headers` | `{}` | Extra headers for the token request only, such as `Authorization`. |
+| `fetch` | the browser's | The `fetch` the token request goes through. |
+| `global` | `false` | Also expose the recorder as `window.SessionReplay`. |
+
+The package also exports `stop()`, `mark(label, payload)`, `send(label, payload)`, `consent(given)`, `sessionId()`, `isRecording()` and `header()`. They work like the [browser API](recording.md) of the directive's recorder. Before `start()` has run, `consent()` only stores the answer, and `start()` picks it up.
+
+The recorder will only upload to the token route's own origin. If `ingestUrl`, `assetUrl` or the snapshot URL in the answer point anywhere else, the answer is refused and nothing is recorded.
+### The token is renewed for you
+
+A tab can stay open longer than its token lives. The package fetches a fresh token from the token route once half of the token's lifetime has passed (after three and a half days with the default of seven), and the recording carries on with it. That way no upload has to fail first, which matters for the last one: the upload a page sends while it closes can't be sent a second time.
+
+- The schedule goes by `expires_in`, a number of seconds, so a browser whose clock is wrong renews on time. An app on 1.3.0 sends only `expires_at`; the package then compares it with the browser's clock.
+- Browsers slow timers down in a background tab and stop them while the computer sleeps, so the package checks again whenever the page is shown or hidden, and when the browser comes back online.
+- A renewal that fails (offline, a server error) is tried again after 30 seconds, then at growing intervals up to 15 minutes, until the old token has expired.
+- If the token route answers that the person is signed out, is someone else or is no longer recorded, the recording ends there and then, and what the tab still held is dropped rather than uploaded under the old name. `consent(true)` does not bring it back; the next `start()` does, with a token of its own. Calling `start()` after a sign-in or sign-out, as before, ends it sooner.
+- `stop()` ends the renewals; `start()` and `consent(true)` bring them back.
+- The renewal request uses the options `start()` got. If your bearer token changes while the tab is open, pass a `fetch` option that adds the current `Authorization` header, or call `start()` again with the new one: a renewal sent with an expired bearer token is answered 401 and ends the recording, as a sign-out would.
+
+If an upload gets a 401 all the same, the recorder fetches a fresh token once and sends that batch again; if there is none to be had, the recording stops.
+
+What can still be lost: a tab that slept through the rest of its token's life (a laptop closed for days) and is closed before the renewal comes back. Its closing upload, a few seconds of the recording at most, is refused, and nobody is left to send it again.
+
+### Vue
+
+```js
+// src/main.js
+import { createApp } from 'vue';
+import { start } from '@packstub/session-replay';
+import App from './App.vue';
+import router from './router';
+
+createApp(App).use(router).mount('#app');
+
+start({ endpoint: `${import.meta.env.VITE_API_URL}/session-replay/token` });
+```
+
+```js
+// after login and logout, e.g. in your auth store
+import { start } from '@packstub/session-replay';
+
+await api.post('/login', credentials);
+await start(); // options from the first start() carry over
+```
+
+### React
+
+```jsx
+// src/App.jsx
+import { useEffect } from 'react';
+import { start } from '@packstub/session-replay';
+import { useAuth } from './auth';
+
+export default function App() {
+    const { user } = useAuth();
+
+    // Again on every sign-in and sign-out: a new person gets a new recording.
+    useEffect(() => {
+        start({ endpoint: `${import.meta.env.VITE_API_URL}/session-replay/token` });
+    }, [user?.id]);
+
+    return <Routes />;
+}
+```
+
+With a bearer token:
+
+```js
+start({
+    endpoint: 'https://api.example.com/session-replay/token',
+    credentials: 'omit',
+    headers: { Authorization: `Bearer ${token}` },
+});
+```
+
+Page changes made by the router (`pushState`, the back button) become navigation markers. Failed requests to the API's origin, meaning the token route's origin, become request markers, as same-origin requests do for a rendered page.
+
+## Link your API's logs to the replay
+
+The recording's cookie lives on the frontend's origin and never reaches your API, so the package exposes the same value as a header. `AddReplayContext` reads `X-Session-Replay` (`context.header`) when there is no cookie, and puts the recording into Laravel's `Context` like the cookie does (see [Error tracking](error-tracking.md)):
+
+```js
+import axios from 'axios';
+import { header } from '@packstub/session-replay';
+
+export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL, withCredentials: true });
+
+// Your own API only: the header carries the recording's write key.
+api.interceptors.request.use((config) => {
+    Object.assign(config.headers, header());
+
+    return config;
+});
+```
+
+`header()` returns `{}` while nothing is recording. Because it is a custom header, the browser sends a preflight request first, so your API's CORS settings (`config/cors.php`) must allow it: `allowed_headers` is `['*']` by default, and if you list headers yourself, add `X-Session-Replay`.
+
+## config/cors.php
+
+The package handles CORS for its own routes. Keep its path (`session-replay/*`) out of `cors.paths` in your app. If the path is listed there, Laravel's middleware answers those requests with your app's rules, and the package logs a warning. The defaults (`api/*`, `sanctum/csrf-cookie`) don't match it.
+
+The upload routes never allow credentials. They trust the signed token in the request body and nothing else. Only the token route allows credentials, since it runs behind your sign-in.
+
+## Limits
+
+- **No Assist across origins.** Help requests, co-browsing and calls stay on pages Laravel renders.
+- **`except` and `except_routes` don't apply** to the frontend's routes. The server never sees them. Leave a page out by calling `stop()` there and `start()` when the person leaves it.
+- **No shared snapshots.** An SPA has one page load per tab, so there is nothing to share.
+- **Send the header only to your own API.** It carries the recording's write key.
+- **The token is signed, not encrypted.** The person, workspace, impersonator and properties in it can be read by the page, as they can in a rendered page's source.
+- **An oversized upload can't be read by the frontend.** Laravel's `ValidatePostSize` answers it with a 413 before routing, so the answer carries no CORS headers. Keep `ingest.max_batch_kb` under PHP's `post_max_size`.
+
+The Spicy fork also supports the existing [served client and framework adapters](spicy-adapters.md).

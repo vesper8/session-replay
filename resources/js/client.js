@@ -59,6 +59,8 @@ export function createReplayClient({ configuration, origin = location.origin, on
                 recorder.configure(settings, { resumeOnLoad: firstDocumentStart });
                 firstDocumentStart = false;
                 policy = nextPolicy;
+            } else {
+                recorder.renew?.(settings);
             }
             state(recorder.isRecording() ? 'recording' : 'disabled', recorder.sessionId());
         } catch {

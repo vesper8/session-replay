@@ -174,6 +174,10 @@ than a promise of irreversible anonymity. Review representative product recordin
 enabling it. See [standalone integration](standalone.md) and the enclosing application's
 [policy](../../../../docs-spicy/session-replay.md).
 
+### Named pilot diagnostics
+
+Managed installations can set `capture.layout_diagnostics` to index the enabled capture channels for named recordings. The browser records the page and request paths without query values, plus diagnostic labels and details. Form inputs, blocked regions and the layout event filter retain their masks. Turning on anonymization restores category-only navigation and suppresses free-form markers. Server exceptions and application problem submissions require the recording context and an eligible recording. The player builds timeline ticks from the marker index, including server-originated events.
+
 ### Observability fidelity
 
 An application can set `privacy.layout_fidelity=true` to serialize an allowlist of computed

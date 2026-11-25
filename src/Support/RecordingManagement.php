@@ -48,6 +48,7 @@ final class RecordingManagement
                     throw new RuntimeException('Could not erase recording files.');
                 }
 
+                Cache::forget('session-replay:server-errors:'.$session->id);
                 $unused = ReplayAsset::query()->whereIn('hash', $hashes)
                     ->whereNotIn('hash', ReplaySessionAsset::query()->select('hash'))->get();
                 foreach ($unused as $asset) {

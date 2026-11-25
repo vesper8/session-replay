@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Str;
+use Packstub\SessionReplay\Events\ReplayReported;
 use Packstub\SessionReplay\Facades\SessionReplay;
 use Packstub\SessionReplay\Models\ReplayMarker;
 use Packstub\SessionReplay\Models\ReplaySession;
@@ -55,6 +56,20 @@ class ServerErrors
         }
     }
 
+    /** Index a successful problem submission from the application's own reporting flow. */
+    public function problemReported(string $label): void
+    {
+        if ($this->request === null || $this->recording === null || ! SessionReplay::enabled() || ! $this->mode()) {
+            return;
+        }
+
+        try {
+            $this->append(['type' => ReplayMarker::REPORT, 'label' => mb_substr($label, 0, 480), 'payload' => '{}', 'at_ms' => now()->getTimestampMs()]);
+        } catch (Throwable) {
+            // Recording availability cannot change the outcome of a submitted problem.
+        }
+    }
+
     /** Markers kept for a recording before it was stored, for its owner only; taken once. */
     public function takePending(ReplaySession $session): void
     {
@@ -84,11 +99,19 @@ class ServerErrors
             return;
         }
 
+        $this->append($this->marker($exception, $mode === 'message'));
+    }
+
+    private function append(array $marker): void
+    {
         $user = SessionReplay::user($this->request);
-        $marker = $this->marker($exception, $mode === 'message');
         $session = ReplaySession::query()->find($this->recording);
 
         if ($session === null) {
+            if (config('session-replay.capture.layout_diagnostics') && (RecordingManagement::anonymous()
+                || RecordingManagement::database()->table('replay_erased_ids')->where('digest', hash('sha256', $this->recording))->exists())) {
+                return;
+            }
             $this->keep($this->recording, $marker, $user);
 
             return;
@@ -139,13 +162,21 @@ class ServerErrors
             return;
         }
 
-        ReplayMarker::query()->insert(array_map(fn (array $marker): array => [
-            ...$marker,
-            'replay_session_id' => $session->getKey(),
-            'created_at' => now(),
-        ], array_slice($markers, 0, self::MAX_PENDING)));
-
-        ReplaySession::query()->whereKey($session->getKey())->increment('error_count', min(count($markers), self::MAX_PENDING));
+        $errors = [];
+        foreach (array_slice($markers, 0, self::MAX_PENDING) as $marker) {
+            if ($marker['type'] === ReplayMarker::REPORT) {
+                $report = new ReplayMarker;
+                $report->forceFill(['type' => ReplayMarker::REPORT, 'label' => $marker['label'], 'at_ms' => $marker['at_ms'], 'payload' => []]);
+                $session->markers()->save($report);
+                ReplayReported::dispatch($session, $report);
+            } else {
+                $errors[] = [...$marker, 'replay_session_id' => $session->getKey(), 'created_at' => now()];
+            }
+        }
+        if ($errors) {
+            ReplayMarker::query()->insert($errors);
+            ReplaySession::query()->whereKey($session->getKey())->increment('error_count', count($errors));
+        }
     }
 
     /** @param  array<string, mixed>  $marker */
@@ -171,6 +202,10 @@ class ServerErrors
      */
     protected function mayWrite(ReplaySession $session, ?string $keyHash, ?string $userType, ?string $userId): bool
     {
+        if (config('session-replay.capture.layout_diagnostics') && $session->user_id === null) {
+            return false;
+        }
+
         if ($session->write_key === null) {
             if (! $session->openWithoutKey()) {
                 return false;
