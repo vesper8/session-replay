@@ -52,7 +52,8 @@ export function createReplayClient({ configuration, origin = location.origin, on
                 return;
             }
             const settings = result.configuration;
-            const nextPolicy = JSON.stringify({ ...settings, token: undefined });
+            // A deployment changes the script URL. The loaded recorder can renew until its host reloads.
+            const nextPolicy = JSON.stringify({ ...settings, token: undefined, scriptUrl: undefined });
             const recorder = await install(settings);
             if (current !== revision) return;
             if (policy !== nextPolicy || !recorder.isRecording()) {

@@ -741,7 +741,7 @@ class SessionReplayManager
     {
         static $versions = [];
 
-        return $versions[$file] ??= substr(md5((string) @filemtime($this->scriptPath($file)).(string) @filesize($this->scriptPath($file))), 0, 10);
+        return $versions[$file] ??= substr(hash_file('sha256', $this->scriptPath($file)), 0, 16);
     }
 
     /**
