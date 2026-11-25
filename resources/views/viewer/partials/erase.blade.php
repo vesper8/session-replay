@@ -3,7 +3,7 @@
     @method('DELETE')
     @isset($recording)<input type="hidden" name="ids[]" value="{{ $recording->id }}">@endisset
     <button type="button" id="erase-trigger" @disabled(!isset($recording))>{{ isset($recording) ? __('session-replay::viewer.erase.one') : __('session-replay::viewer.erase.selected') }}</button>
-    <dialog id="erase-dialog" aria-labelledby="erase-heading">
+    <dialog class="sr-erase-dialog" id="erase-dialog" aria-labelledby="erase-heading">
         <h2 id="erase-heading">{{ __('session-replay::viewer.erase.heading') }}</h2>
         <p>{{ __('session-replay::viewer.erase.warning') }} (<output id="erase-count"></output>)</p>
         <button type="button" id="erase-cancel" autofocus>{{ __('session-replay::viewer.erase.cancel') }}</button>

@@ -337,6 +337,7 @@ return [
     'viewer' => [
         'enabled' => true,
         'middleware' => ['web', 'auth'],
+        'page_middleware' => null,
         'guard' => null,
         'per_page' => 25,
         // The attribute shown for a person in the list; falls back to the key.

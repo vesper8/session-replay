@@ -4,6 +4,8 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-25
 
+- Applications can embed the recording list and player in their own panel layout with scoped styling and the panel’s middleware.
+
 - A previous route prefix can forward bookmarks and keep open recorders uploading during a move.
 
 - Managed pilots can index errors, failed requests, vitals, rage clicks and problem reports while retaining sanitized layouts. Select an indexed event on the playback bar to seek and open its details.

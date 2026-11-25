@@ -241,27 +241,30 @@ class SessionReplayServiceProvider extends PackageServiceProvider
                 $this->registerAssistRoutes($uuid);
             }
 
-            Route::middleware([...$this->viewerMiddleware(), AuthorizeViewer::class])->group(function () use ($uuid): void {
-                // An id that is no recording answers 403, like one the gate denies (see AuthorizeViewer, which does the same
-                // when the binding has not run yet): a viewer of one workspace must not learn whether an id they came by
-                // is a recording of another.
-                $missing = fn () => abort(403);
+            // An id that is no recording answers 403, like one the gate denies (see AuthorizeViewer, which does the same
+            // when the binding has not run yet): a viewer of one workspace must not learn whether an id they came by
+            // is a recording of another.
+            $missing = fn () => abort(403);
 
+            Route::middleware([...$this->viewerMiddleware(), AuthorizeViewer::class])->group(function () use ($uuid, $missing): void {
                 // The data routes stay when the pages are turned off: the player component needs them.
                 Route::get('{session}/manifest', [ReplayDataController::class, 'manifest'])->where('session', $uuid)->missing($missing)->name('manifest');
                 Route::get('{session}/chunks/{seq}', [ReplayDataController::class, 'chunk'])->where('session', $uuid)->whereNumber('seq')->missing($missing)->name('chunk');
                 Route::get('{session}/assets/{hash}', [ReplayDataController::class, 'asset'])->where('session', $uuid)->where('hash', '[a-f0-9]{64}|__hash__')->missing($missing)->name('asset');
                 Route::get('{session}/snapshots/{hash}', [ReplayDataController::class, 'snapshot'])->where('session', $uuid)->where('hash', '[a-f0-9]{64}|__hash__')->missing($missing)->name('snapshot');
+            });
 
-                if (config('session-replay.viewer.enabled', true)) {
+            if (config('session-replay.viewer.enabled', true)) {
+                $pages = $this->viewerMiddleware(config('session-replay.viewer.page_middleware'));
+                Route::middleware([...$pages, AuthorizeViewer::class])->group(function () use ($uuid, $missing): void {
                     if (config('session-replay.viewer.manage')) {
                         Route::put('privacy', [RecordingManagementController::class, 'privacy'])->name('privacy');
                         Route::delete('recordings', [RecordingManagementController::class, 'destroy'])->name('destroy');
                     }
                     Route::get('/', [ViewerController::class, 'index'])->name('index');
                     Route::get('{session}', [ViewerController::class, 'show'])->where('session', $uuid)->missing($missing)->name('show');
-                }
-            });
+                });
+            }
         });
 
         $previous = trim((string) config('session-replay.previous_path'), '/');
@@ -365,13 +368,16 @@ class SessionReplayServiceProvider extends PackageServiceProvider
                 Route::post('requests/{id}/signals', [AssistController::class, 'signal'])->where('id', $uuid)->name('signal');
             });
 
-            Route::middleware([...$this->viewerMiddleware(), AuthorizeViewer::class])->group(function () use ($uuid): void {
-                if (config('session-replay.viewer.enabled', true)) {
+            if (config('session-replay.viewer.enabled', true)) {
+                $pages = $this->viewerMiddleware(config('session-replay.viewer.page_middleware'));
+                Route::middleware([...$pages, AuthorizeViewer::class])->group(function () use ($uuid): void {
                     Route::get('/', [AssistAgentController::class, 'index'])->name('index');
                     // The agent's live stage of a request they hold (the built-in viewer's page).
                     Route::get('requests/{id}/stage', [AssistAgentController::class, 'stage'])->where('id', $uuid)->name('stage');
-                }
+                });
+            }
 
+            Route::middleware([...$this->viewerMiddleware(), AuthorizeViewer::class])->group(function () use ($uuid): void {
                 Route::get('queue', [AssistAgentController::class, 'queue'])->name('queue');
                 Route::get('requests/{id}/status', [AssistAgentController::class, 'status'])->where('id', $uuid)->name('status');
                 Route::post('requests/{id}/claim', [AssistAgentController::class, 'claim'])->where('id', $uuid)->name('claim');
@@ -389,9 +395,9 @@ class SessionReplayServiceProvider extends PackageServiceProvider
      *
      * @return array<int, mixed>
      */
-    protected function viewerMiddleware(): array
+    protected function viewerMiddleware(?array $overrides = null): array
     {
-        $middleware = array_values((array) config('session-replay.viewer.middleware', ['web', 'auth']));
+        $middleware = array_values($overrides ?? (array) config('session-replay.viewer.middleware', ['web', 'auth']));
         $guard = config('session-replay.viewer.guard');
 
         if (! is_string($guard) || $guard === '') {

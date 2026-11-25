@@ -289,3 +289,9 @@ Event::listen(function (ReplayReported $event): void {
 ```
 
 In the Spicy player, selecting a colored tick on the playback bar seeks to that moment and opens the same details as the sidebar entry. Each tick has a timestamp and can be activated with the keyboard.
+
+### Embedding the manager in an application panel
+
+Override `resources/views/vendor/session-replay/viewer/layout.blade.php` in the application. Render the panel layout around a `.sr-viewer` element with `data-replay-block` and `@yield('content')`. Include `session-replay::viewer.partials.styles` for the scoped controls and render the `head` stack. Filament hosts can include `session-replay::viewer.partials.panel-styles` instead and add `sr-viewer--panel` on the same element to use the panel colors and its light and dark modes. Other hosts supply their own colors. The list, player, permissions and management forms continue to come from the package.
+
+Set `viewer.page_middleware` to the panel's authenticated middleware group for list, player and management requests. The configured viewer gate still runs. Manifest and chunk requests use `viewer.middleware`.
