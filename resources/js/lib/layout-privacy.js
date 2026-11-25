@@ -114,9 +114,15 @@ export function layoutPrivacy({ layoutFidelity = false, readableText = false, ma
         const element = nodeOf(id);
         if (!element || element.nodeType !== 1) return '';
         const computed = element.ownerDocument.defaultView.getComputedStyle(element);
+        let translate = computed.translate;
+        if (translate && translate !== 'none') {
+            // A class mutation starts the transition. Its final position has no DOM mutation of its own.
+            const motion = element.getAnimations().find((animation) => animation.transitionProperty === 'translate');
+            if (motion) translate = motion.effect.getKeyframes().at(-1)?.translate ?? translate;
+        }
         const values = [];
         for (const property of presentationProperties) {
-            const value = computed.getPropertyValue(property);
+            const value = property === 'translate' ? translate : computed.getPropertyValue(property);
             if (!value || !safeValue(value) || /[\[\]]/.test(value)) continue;
             const words = value.replace(/#[a-f\d]+/gi, '').replace(/(?:\d*\.)?\d+(?:e[+-]?\d+)?(?:px|rem|em|vh|vw|deg|rad|turn|ms|s|fr|%)?/gi, '').match(/[a-z_][\w-]*/gi) || [];
             if (words.some((word) => !keywords.has(word.toLowerCase()))) continue;
