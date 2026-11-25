@@ -94,7 +94,7 @@
                                     @include('session-replay::viewer.partials.last-seen', ['session' => $session])
                                 @endif
                             </td>
-                            <td>{{ $session->durationForHumans() }}</td>
+                            <td>{{ $session->durationForHumans() }}<br><small class="muted">{{ __('session-replay::viewer.recorded_activity') }} · {{ $session->activityForHumans() }}</small></td>
                             <td>{{ $session->page_count }}</td>
                             <td>
                                 @if ($session->error_count) <span class="badge danger">{{ $session->error_count }}</span> @else <span class="muted">0</span> @endif
@@ -104,7 +104,8 @@
                                 @php($rating = $session->vitalsRating())
                                 @if ($rating) <span class="badge {{ ['good' => 'ok', 'needs-improvement' => 'warn', 'poor' => 'danger'][$rating] }}">{{ __('session-replay::viewer.ratings.'.$rating) }}</span> @else <span class="muted">·</span> @endif
                             </td>
-                            <td class="url muted" title="{{ $session->entry_url }}">{{ \Illuminate\Support\Str::after((string) $session->entry_url, '://') }}</td>
+                            @php($firstPage = $session->firstPage())
+                            <td class="url muted" title="{{ $firstPage }}">{{ \Illuminate\Support\Str::after((string) $firstPage, '://') }}</td>
                             <td class="actions">
                                 <a href="{{ route('session-replay.show', $session) }}">{{ __('session-replay::viewer.watch') }}</a>
                                 @include('session-replay::viewer.partials.offer-help', ['session' => $session, 'assist' => $assist])

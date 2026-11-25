@@ -20,6 +20,7 @@ return [
     'guest' => 'Gast',
     'all_recordings' => 'Alle Aufzeichnungen',
     'count' => ':count Aufzeichnung|:count Aufzeichnungen',
+    'recorded_activity' => 'Erfasste Aktivität',
     'length' => 'Dauer',
     'pages' => 'Seiten',
     'errors' => 'Fehler',

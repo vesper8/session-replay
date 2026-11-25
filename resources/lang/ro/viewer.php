@@ -20,6 +20,7 @@ return [
     'guest' => 'Vizitator',
     'all_recordings' => 'Toate înregistrările',
     'count' => ':count înregistrare|:count înregistrări|:count de înregistrări',
+    'recorded_activity' => 'Activitate înregistrată',
     'length' => 'Durată',
     'pages' => 'Pagini',
     'errors' => 'Erori',

@@ -178,8 +178,8 @@ export function layoutPrivacy({ layoutFidelity = false, readableText = false, ma
         for (const child of root.childNodes || []) node(child, root.tagName);
     }
 
-    return (event) => {
-        if (event.type === 4) event.data.href = privatePageUrl(event.data.href, pagePaths);
+    return (event, pageUrl = (value) => privatePageUrl(value, pagePaths)) => {
+        if (event.type === 4 && event.data?.href) event.data.href = pageUrl(event.data.href);
         if (event.type === 2) node(event.data.node);
         if (event.type === 3) {
             const data = event.data;

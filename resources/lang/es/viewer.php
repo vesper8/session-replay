@@ -20,6 +20,7 @@ return [
     'guest' => 'Invitado',
     'all_recordings' => 'Todas las grabaciones',
     'count' => ':count grabación|:count grabaciones',
+    'recorded_activity' => 'Actividad registrada',
     'length' => 'Duración',
     'pages' => 'Páginas',
     'errors' => 'Errores',

@@ -20,6 +20,7 @@ return [
     'guest' => 'Гость',
     'all_recordings' => 'Все записи',
     'count' => ':count запись|:count записи|:count записей',
+    'recorded_activity' => 'Записанная активность',
     'length' => 'Длительность',
     'pages' => 'Страницы',
     'errors' => 'Ошибки',

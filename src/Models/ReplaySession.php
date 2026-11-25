@@ -6,8 +6,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Packstub\SessionReplay\Facades\SessionReplay;
 use Packstub\SessionReplay\Support\ReplayStorage;
 
@@ -90,6 +92,39 @@ class ReplaySession extends ReplayModel
         return $this->hasMany(ReplayMarker::class)->orderBy('at_ms');
     }
 
+    public function firstNavigation(): HasOne
+    {
+        return $this->hasOne(ReplayMarker::class)->ofMany(['at_ms' => 'min', 'id' => 'min'],
+            fn (Builder $query) => $query->where('type', 'navigation'));
+    }
+
+    public function firstPage(): ?string
+    {
+        if (! str_starts_with((string) $this->entry_url, 'https://replay.invalid/')) {
+            return $this->entry_url;
+        }
+
+        $label = rawurldecode(ltrim((string) parse_url($this->entry_url, PHP_URL_PATH), '/'));
+        $navigation = $this->user_id !== null ? $this->firstNavigation : null;
+        // Only the opening navigation can stand in for a categorical entry on an older recording.
+        if (! $navigation || ! $this->started_at || abs($navigation->at_ms - $this->started_at->getTimestampMs()) > 2000) {
+            return $label;
+        }
+
+        $url = $navigation->payload['url'] ?? null;
+        $parts = is_string($url) ? parse_url($url) : false;
+        if (! $parts || ! in_array($parts['scheme'] ?? '', ['http', 'https'], true)
+            || empty($parts['host']) || $parts['host'] === 'replay.invalid' || isset($parts['user']) || isset($parts['pass'])) {
+            return $label;
+        }
+
+        $path = $parts['path'] ?? '/';
+        $paths = config('session-replay.privacy.page_paths', []);
+        $recordedCategory = collect($paths)->first(fn ($name, $pattern) => Str::is($pattern, $path), 'page');
+
+        return $recordedCategory === $label ? Str::before(Str::before($url, '?'), '#') : $label;
+    }
+
     /**
      * Whether an upload presenting this write key may add to the recording. A recording from before write keys
      * (none stored) takes any upload its identity checks allow, as it did, but only while its browser could still be
@@ -138,7 +173,17 @@ class ReplaySession extends ReplayModel
     /** "4m 12s" — for a list. */
     public function durationForHumans(): string
     {
-        $seconds = intdiv($this->durationMs(), 1000);
+        return $this->formatMilliseconds($this->durationMs());
+    }
+
+    public function activityForHumans(): string
+    {
+        return $this->active_ms > 0 && $this->active_ms < 1000 ? '<1s' : $this->formatMilliseconds((int) $this->active_ms);
+    }
+
+    private function formatMilliseconds(int $milliseconds): string
+    {
+        $seconds = intdiv($milliseconds, 1000);
 
         return match (true) {
             $seconds >= 3600 => sprintf('%dh %02dm', intdiv($seconds, 3600), intdiv($seconds % 3600, 60)),

@@ -605,8 +605,11 @@ function emit(event) {
     redactPluginUrls(event, config.privacy.redactQuery);
     if (textMaskingOn()) maskTextAttributes(event, isTextMasked, elementOf);
 
-    if (event.type === EVENT_META && event.data && event.data.href) event.data.href = redacted(event.data.href);
-    if (config.privacy.layoutOnly && !scrubLayout(event)) return;
+    if (config.privacy.layoutOnly) {
+        if (!scrubLayout(event, redacted)) return;
+    } else if (event.type === EVENT_META && event.data?.href) {
+        event.data.href = redacted(event.data.href);
+    }
     // Once the tab used wire:navigate its snapshots are numbered after the first page's, so they never match a shared
     // one, and the page is not the one the server rendered for share_routes.
     if (event.type === EVENT_FULL_SNAPSHOT && navigation.swapped()) unshared.add(event);

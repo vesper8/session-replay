@@ -1,5 +1,7 @@
 # Watching replays
 
+The list and player show elapsed length and recorded activity time. Activity adds the gaps shorter than five seconds between successive interaction events. A single isolated interaction can register zero active seconds.
+
 ## The gate
 
 One ability decides who may watch: `viewSessionReplay`.

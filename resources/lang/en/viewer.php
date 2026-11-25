@@ -20,6 +20,7 @@ return [
     'guest' => 'Guest',
     'all_recordings' => 'All recordings',
     'count' => ':count recording|:count recordings',
+    'recorded_activity' => 'Recorded activity',
     'length' => 'Length',
     'pages' => 'Pages',
     'errors' => 'Errors',

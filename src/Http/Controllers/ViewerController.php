@@ -28,6 +28,7 @@ class ViewerController
         $live = $request->boolean('live');
 
         $sessions = SessionReplay::visibleTo(ReplaySession::query())
+            ->with('firstNavigation')
             ->when(! config('session-replay.viewer.recorded_user_label'), fn ($query) => $query->with('user'))
             ->withExists(['markers as reported' => fn ($query) => $query->where('type', ReplayMarker::REPORT)])
             ->when($this->text($request->query('user')), fn ($query, string $user) => $query->where('user_id', $user))
