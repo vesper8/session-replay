@@ -14,7 +14,7 @@
         padding-block: 2rem;
         min-width: 0;
         font-size: .875rem;
-        container-type: inline-size;
+
 
         header.top { flex-wrap: wrap; align-items: center; }
         header.top h1 { font-size: clamp(1.5rem, 2.2vw, 1.875rem); font-weight: 700; line-height: 1.25; letter-spacing: -.025em; }
@@ -39,9 +39,21 @@
         .sr-erase-dialog p { margin-block: .75rem 1rem; }
         .sr-erase-dialog button[type=submit] { background: var(--danger-700); color: white; }
         .sr-player { --sr-pointer: var(--accent); --sr-muted: var(--muted); --sr-border: var(--border); }
-        .rr-controller { color-scheme: light; color: var(--gray-950); }
+        .sr-player .rr-player {
+            background: var(--card);
+            .rr-controller { background: var(--card); color: var(--text); }
+            .rr-timeline__time { color: var(--muted); }
+            .rr-progress { background: var(--border); }
+            .rr-progress__step { background: color-mix(in srgb, var(--accent) 35%, var(--card)); }
+            .rr-progress__handler { background: var(--accent); }
+            .rr-controller__btns button { color: var(--text); }
+            .rr-controller__btns button.active { color: white; background: var(--primary-700); }
+            .rr-controller__btns svg { fill: currentColor; }
+        }
+        .sr-player__stage:is(.sr-expanded, :fullscreen) { border-radius: 0; }
     }
     .dark .sr-viewer--panel { color-scheme: dark; }
+    .sr-viewer--panel:not(:has(.sr-expanded)) { container-type: inline-size; }
     @container (max-width: 52rem) {
         .sr-viewer--panel .sr-player { grid-template-columns: minmax(0, 1fr); }
     }
