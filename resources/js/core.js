@@ -895,7 +895,9 @@ async function send(batch) {
     let response;
 
     try {
-        response = await fetch(config.ingestUrl, { method: 'POST', body: form(batch, blob) });
+        const opening = batch.seq === 0 && config.privacy.layoutFidelity;
+        const keepalive = opening && blob.size + JSON.stringify(batch.meta).length + batch.token.length + 1024 < KEEPALIVE_LIMIT;
+        response = await fetch(config.ingestUrl, { method: 'POST', body: form(batch, blob), keepalive });
     } catch {
         return failed(batch);
     }
@@ -1709,8 +1711,8 @@ function begin() {
 
     schedule();
 
-    // The page snapshot goes up early and compressed: left to the unload request it is too large for keepalive
-    // and a page left within the first interval would be missing from the replay.
+    // Send the layout and opening marker together before a quick move to the next panel page.
+    if (config.privacy.layoutFidelity) flush();
     setTimeout(() => {
         if (!stopped && buffer.length) flush();
     }, FIRST_FLUSH_MS);

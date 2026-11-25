@@ -4,6 +4,7 @@ All notable changes to `packstub/session-replay` are documented here.
 
 ## Spicy fork — 2026-11-25
 
+- Layout capture starts uploading the opening snapshot as soon as it records the first page marker.
 - Named layout recordings show the opening page address when diagnostics are enabled. Older recordings show their recorded opening navigation when available, or their page category. The list and player show recorded activity alongside elapsed time.
 
 - Layout recordings retain individual CSS translations and standard list markers. Timestamp links use the viewport at the selected moment. Hosts can restore public branding and known layout rules in the playback document.
