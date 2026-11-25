@@ -432,6 +432,7 @@ return [
     'context' => [
         'enabled' => true,
         'cookie' => 'session_replay_id',
+        'cookie_path' => '/',
         // The same "<id>.<write key>" as a request header, for a frontend on another origin whose cookie never reaches
         // this app (the npm package's header()). The valid header wins when both are sent; null turns the header off.
         'header' => 'X-Session-Replay',

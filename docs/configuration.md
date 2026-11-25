@@ -222,3 +222,5 @@ changes require a document reload.
 anonymous storage, full text/input masking, media blocking and disabled diagnostic content
 channels. It removes content and resource URLs at the cost of replay fidelity. See the
 [privacy profile](privacy.md#reduced-layout-capture-spicy-fork).
+
+Set `context.cookie_path` to a panel path to limit its correlation cookie to that panel. Requests outside that path can send the current tab's `X-Session-Replay` header.

@@ -425,6 +425,7 @@ class SessionReplayManager
                 'volatileIds' => array_values(array_filter((array) config('session-replay.snapshots.volatile_ids', []), 'is_string')),
                 'url' => $this->route('ingest.snapshot'),
             ],
+            'cookiePath' => config('session-replay.context.cookie_path', '/'),
             'cookie' => config('session-replay.context.enabled', true) && ($page || ! app(AllowedOrigins::class)->crossOrigin($request)) ? config('session-replay.context.cookie', 'session_replay_id') : null,
             'mode' => $this->mode(),
             'onError' => $this->onErrorConfig($token),

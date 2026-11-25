@@ -253,12 +253,12 @@ function saveSession() {
 
         const value = session.key ? `${session.id}.${session.key}` : session.id;
 
-        document.cookie = `${config.cookie}=${value}; path=/; max-age=${Math.round(config.idleTimeout / 1000)}; SameSite=Lax${secure}`;
+        document.cookie = `${config.cookie}=${value}; path=${config.cookiePath || '/'}; max-age=${Math.round(config.idleTimeout / 1000)}; SameSite=Lax${secure}`;
     }
 }
 
 function clearCookie() {
-    if (config.cookie) document.cookie = `${config.cookie}=; path=/; max-age=0; SameSite=Lax`;
+    if (config.cookie) document.cookie = `${config.cookie}=; path=${config.cookiePath || '/'}; max-age=0; SameSite=Lax`;
 }
 
 function hasConsent() {
