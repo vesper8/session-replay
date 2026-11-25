@@ -108,7 +108,8 @@ export function layoutPrivacy({ layoutFidelity = false, readableText = false, ma
         return result;
     }
 
-    const presentationProperties = 'display position top right bottom left z-index width height min-width min-height max-width max-height box-sizing margin-top margin-right margin-bottom margin-left padding-top padding-right padding-bottom padding-left border-top-width border-right-width border-bottom-width border-left-width border-top-style border-right-style border-bottom-style border-left-style border-top-color border-right-color border-bottom-color border-left-color border-top-left-radius border-top-right-radius border-bottom-left-radius border-bottom-right-radius background-color color opacity visibility overflow-x overflow-y flex-direction flex-wrap flex-grow flex-shrink flex-basis align-items align-content align-self justify-content justify-items justify-self row-gap column-gap grid-template-columns grid-template-rows grid-auto-columns grid-auto-rows grid-auto-flow grid-column-start grid-column-end grid-row-start grid-row-end order transform transform-origin font-size font-weight font-style line-height letter-spacing white-space text-align text-transform text-decoration-line text-decoration-color text-decoration-style vertical-align word-break overflow-wrap text-overflow box-shadow outline-color outline-width outline-style outline-offset pointer-events fill stroke stroke-width'.split(' ');
+    const presentationProperties = 'display position top right bottom left z-index width height min-width min-height max-width max-height box-sizing margin-top margin-right margin-bottom margin-left padding-top padding-right padding-bottom padding-left border-top-width border-right-width border-bottom-width border-left-width border-top-style border-right-style border-bottom-style border-left-style border-top-color border-right-color border-bottom-color border-left-color border-top-left-radius border-top-right-radius border-bottom-left-radius border-bottom-right-radius background-color color opacity visibility overflow-x overflow-y flex-direction flex-wrap flex-grow flex-shrink flex-basis align-items align-content align-self justify-content justify-items justify-self row-gap column-gap grid-template-columns grid-template-rows grid-auto-columns grid-auto-rows grid-auto-flow grid-column-start grid-column-end grid-row-start grid-row-end order translate transform transform-origin font-size font-weight font-style line-height letter-spacing white-space text-align text-transform text-decoration-line text-decoration-color text-decoration-style vertical-align word-break overflow-wrap text-overflow box-shadow outline-color outline-width outline-style outline-offset pointer-events fill stroke stroke-width'.split(' ');
+    const listMarkerTypes = new Set('none disc circle square decimal decimal-leading-zero lower-alpha upper-alpha lower-latin upper-latin lower-roman upper-roman'.split(' '));
     function presentation(id) {
         const element = nodeOf(id);
         if (!element || element.nodeType !== 1) return '';
@@ -120,6 +121,10 @@ export function layoutPrivacy({ layoutFidelity = false, readableText = false, ma
             const words = value.replace(/#[a-f\d]+/gi, '').replace(/(?:\d*\.)?\d+(?:e[+-]?\d+)?(?:px|rem|em|vh|vw|deg|rad|turn|ms|s|fr|%)?/gi, '').match(/[a-z_][\w-]*/gi) || [];
             if (words.some((word) => !keywords.has(word.toLowerCase()))) continue;
             values.push(`${property}:${value}`);
+        }
+        // List styles can also contain literal text or application counter names.
+        if ((computed.display === 'list-item' || element.matches('ul, ol, menu')) && listMarkerTypes.has(computed.listStyleType)) {
+            values.push(`list-style-type:${computed.listStyleType}`);
         }
         return values.join(';') + ';font-family:system-ui,sans-serif';
     }

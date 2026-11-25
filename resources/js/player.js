@@ -596,6 +596,7 @@ async function mount(root, options = {}) {
             autoPlay: false,
             skipInactive: true,
             showController: true,
+            insertStyleRules: JSON.parse(root.dataset.styleRules || '[]'),
             speedOption: [1, 2, 4, 8],
             tags: Object.fromEntries(Object.entries(COLORS).map(([type, color]) => [`sr:${type}`, color])),
         },

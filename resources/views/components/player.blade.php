@@ -19,6 +19,7 @@
     data-markers="{{ $markers ? 'true' : 'false' }}"
     data-copy-link="{{ $copyLink ? 'true' : 'false' }}"
     data-autoplay="{{ ($autoplay ?? config('session-replay.viewer.autoplay', false)) ? 'true' : 'false' }}"
+    data-style-rules="{{ json_encode(array_values(config('session-replay.viewer.style_rules', []))) }}"
     data-labels="{{ json_encode(__('session-replay::player'), JSON_UNESCAPED_UNICODE) }}"
     data-replay-block
 ></div>

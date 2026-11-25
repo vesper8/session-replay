@@ -344,6 +344,8 @@ return [
         'user_label' => 'email',
         // Start playing as soon as the player is ready (also with ?t= or ?at=, from that moment).
         'autoplay' => false,
+        // Trusted host CSS rules that rrweb applies inside the playback document.
+        'style_rules' => [],
     ],
 
     /*
